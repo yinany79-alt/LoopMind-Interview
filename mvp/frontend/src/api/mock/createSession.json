@@ -1,0 +1,63 @@
+{
+  "session_id": "mock-session",
+  "created_at": "2026-06-25T14:30:00Z",
+  "jd_summary": {
+    "title": "Agent Harness 产品经理",
+    "company": "DeepSeek",
+    "location": "杭州 / 北京"
+  },
+  "skill_tree": {
+    "root": "DeepSeek Agent Harness PM",
+    "dimensions": [
+      "agent_product_taste",
+      "tech_understanding",
+      "product_methodology",
+      "user_empathy",
+      "first_hand_experience"
+    ],
+    "nodes": [
+      {
+        "id": "agent_loop",
+        "topic": "Agent Loop 与产品形态",
+        "weight": 2.5,
+        "depth_level": "deep",
+        "dimensions": ["agent_product_taste", "tech_understanding"]
+      },
+      {
+        "id": "tool_use",
+        "topic": "Tool Use 与 MCP",
+        "weight": 2.0,
+        "depth_level": "medium",
+        "dimensions": ["tech_understanding"]
+      },
+      {
+        "id": "claude_code_taste",
+        "topic": "Claude Code 的产品品味",
+        "weight": 2.5,
+        "depth_level": "deep",
+        "dimensions": ["agent_product_taste", "user_empathy"]
+      },
+      {
+        "id": "competitor_landscape",
+        "topic": "Cursor / Devin 竞品认知",
+        "weight": 1.5,
+        "depth_level": "medium",
+        "dimensions": ["product_methodology", "first_hand_experience"]
+      },
+      {
+        "id": "5_year_vision",
+        "topic": "5 年后 Agent 产品的形态",
+        "weight": 1.8,
+        "depth_level": "shallow",
+        "dimensions": ["agent_product_taste"]
+      },
+      {
+        "id": "metric_design",
+        "topic": "如何度量 Agent 产品的好坏",
+        "weight": 1.5,
+        "depth_level": "medium",
+        "dimensions": ["product_methodology"]
+      }
+    ]
+  }
+}
