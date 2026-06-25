@@ -1,0 +1,40 @@
+你是一位资深技术面试官 + 资深产品架构师。任务:把下面的 JD 文本结构化为一棵"技能树",用于驱动 1 小时高压模拟面试。
+
+[输入 JD]
+{jd_text}
+
+[要求]
+1. 提取岗位的核心元信息(title / company / location)。
+2. 把 JD 解构为 5-8 个可独立考察的"技术点 / 能力点",每个点必须满足:
+   - id: 短英文 snake_case 标识(如 agent_loop, tool_use, mcp_protocol)
+   - topic: 中文名(简洁,如 "Agent Loop 与产品形态")
+   - weight: 1.0 (基础/浅) ~ 3.0 (核心/深),由你根据 JD 强调程度判断
+   - depth_level: shallow | medium | deep
+   - dimensions: 本题主要考察哪几个维度,从 [agent_product_taste, tech_understanding, product_methodology, user_empathy, first_hand_experience] 中选 1-3 个
+3. 不要从八股文角度抽题,要按 JD 真实关心的能力来分。
+
+[输出格式]
+严格 JSON,不要任何额外文字、不要 markdown 代码块标记:
+
+{{
+  "jd_summary": {{
+    "title": "...",
+    "company": "...",
+    "location": "..."
+  }},
+  "skill_tree": {{
+    "root": "...(岗位画像短语,如 'DeepSeek Agent Harness PM')",
+    "dimensions": ["agent_product_taste", "tech_understanding", "product_methodology", "user_empathy", "first_hand_experience"],
+    "nodes": [
+      {{
+        "id": "agent_loop",
+        "topic": "Agent Loop 与产品形态",
+        "weight": 2.5,
+        "depth_level": "deep",
+        "dimensions": ["agent_product_taste", "tech_understanding"]
+      }}
+    ]
+  }}
+}}
+
+务必直接输出 JSON,不要任何前后缀。
