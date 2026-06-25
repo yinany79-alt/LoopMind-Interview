@@ -1,0 +1,39 @@
+Agent Harness 产品经理 / Agent Harness PM
+DeepSeek · 杭州 / 北京 · 资深
+
+【团队使命】
+Model + Harness = Agent。我们相信 Agent 的产品形态本质是"模型能力 × 工程脚手架(Harness)"的乘积。
+Harness 决定模型能力如何被组织、被调用、被打磨,直接影响最终 Agent 产品的用户体验和扩展边界。
+团队目标是把 DeepSeek 的下一代 Agent Harness 做成业内标杆,既要服务自家模型,也要变成开放生态的基础设施。
+
+【你将做什么】
+1. 主导 Agent Harness 的产品定义,与算法 / 模型 / 工程团队共同决定如何把模型的能力翻译成产品能力。
+2. 对 Agent Loop、Tool Use、MCP、Memory、Planning、Reflection 等核心模块的产品形态有自己的判断,
+   把抽象的技术能力翻译成有"产品品味"的功能,而不是堆功能列表。
+3. 深度使用 Claude Code、Cursor、Devin、Manus 等同类产品,沉淀第一手的体感和拆解,
+   形成自己关于"什么样的 Agent 行为有品味"的判断标准。
+4. 与算法工程师讨论"模型能力的极限在哪、Harness 该补什么",在 RL / SFT 数据 / 评测体系上有发言权。
+5. 设计 Agent Harness 面向开发者(内部+外部)的产品形态,定义抽象、契约、调用方式,
+   推动文档 / 示例 / SDK 的可用性达到一线水平。
+6. 与设计、研发、模型团队三方协作,把"看不见的拟人感"(节奏、措辞、行为决策)做出可被感知的差异。
+
+【我们期待你】
+- 5 年以上产品经理经验,有过从 0 到 1 的 AI / 开发者工具 / 基础设施产品落地经历;
+- 对 LLM Agent 的底层原理(Tool Use、ReAct、Function Calling、MCP、Planning、Memory)有清晰理解,
+  能与算法工程师在原理层对话,而不是只懂"调 API";
+- 有第一手的 Agent 产品深度使用经验(Claude Code / Cursor / Devin / Lindy / Manus 等),
+  能讲出来"哪个产品的某个行为细节为什么有品味",而不是只停留在功能描述;
+- 对 Scaling Law、模型能力边界有自己的判断,清楚什么该让模型做、什么必须由 Harness 做;
+- 有强烈的用户共情能力(尤其是开发者用户),能从"用 Agent 完成真实任务"的视角反推产品设计;
+- 跨角色协作能力强,能与算法 / 工程 / 设计同事用各自的语言对话,在分歧中推动决策;
+- 加分项:有过开源项目主导经验 / 写过 Agent 框架 / 在公开渠道(博客 / Twitter / GitHub)持续输出 AI 工程相关思考。
+
+【考察维度】
+- agent_product_taste : 对 Agent 产品形态的品味与判断
+- tech_understanding  : 对 LLM / Agent 底层技术原理的理解深度
+- product_methodology : 产品方法论与决策框架
+- user_empathy        : 对开发者用户的共情与产品反推能力
+- first_hand_experience: 是否有真实使用 Agent 产品的第一手经验
+
+【工作地点】杭州(总部)/ 北京
+【汇报对象】CPO 直线汇报
