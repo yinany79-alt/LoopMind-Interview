@@ -13,12 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# 必须在导入 llm.py 之前 load .env
+# 必须在导入 llm.py 之前 load .env,override=True 让 .env 覆盖 shell 已有环境变量
 _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 if _ENV_PATH.exists():
-    load_dotenv(_ENV_PATH)
+    load_dotenv(_ENV_PATH, override=True)
 else:
-    load_dotenv()
+    load_dotenv(override=True)
 
 from src.api.routes_personas import router as personas_router  # noqa: E402
 from src.api.routes_report import router as report_router  # noqa: E402

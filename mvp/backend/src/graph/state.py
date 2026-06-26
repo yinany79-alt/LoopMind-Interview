@@ -62,6 +62,17 @@ class InterviewState(TypedDict, total=False):
     jd_text: str
     jd_summary: Dict[str, Any]
 
+    # === 运行时控制字段(以下划线开头)===
+    # 注意:event sink 不进 state(无法 pickle),改用 ContextVar(见 graph/graph.py)
+    _user_answer: str  # 本轮用户回答(transient,evaluator_node 消费后置空)
+    _current_turn_id: str
+    _interviewer_mode: str  # OPENING | DRILL_DOWN | SWITCH_TOPIC
+    _previous_satisfaction: int
+    _pending_topic_node: Dict[str, Any]
+    _is_red_flag_hunt: bool
+    _all_done: bool
+    _interviewer_done: bool
+
 
 def make_initial_state(session_id: str, jd_text: str) -> InterviewState:
     return {

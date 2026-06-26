@@ -16,6 +16,43 @@ def load_prompt(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+# ===== LLM 响应内容提取 =====
+
+def llm_text(resp_content: Any) -> str:
+    """从 LangChain 响应的 content 字段提取**正文文本**(不含 thinking blocks)。
+
+    Anthropic 的 thinking 模型会返回 content blocks list,如:
+      [{'type': 'thinking', 'thinking': '...'}, {'type': 'text', 'text': '...'}]
+    我们只要 text 部分。thinking 单独走 extract_thinking_text。
+    """
+    if isinstance(resp_content, str):
+        return resp_content
+    if isinstance(resp_content, list):
+        parts: List[str] = []
+        for blk in resp_content:
+            if isinstance(blk, dict):
+                if blk.get("type") == "text" and "text" in blk:
+                    parts.append(str(blk["text"]))
+                elif blk.get("type") in (None, "") and "text" in blk:
+                    # 兼容某些 provider 不带 type 字段
+                    parts.append(str(blk["text"]))
+            elif isinstance(blk, str):
+                parts.append(blk)
+        return "\n".join(p for p in parts if p)
+    return str(resp_content)
+
+
+def extract_thinking_text(resp_content: Any) -> str:
+    """提取 thinking blocks 的内容(供 ReAct thinking_step 展示用)。"""
+    if isinstance(resp_content, list):
+        parts: List[str] = []
+        for blk in resp_content:
+            if isinstance(blk, dict) and blk.get("type") == "thinking":
+                parts.append(str(blk.get("thinking", "")))
+        return "\n".join(p for p in parts if p)
+    return ""
+
+
 # ===== ReAct 文本解析 =====
 
 _ACTION_RE = re.compile(

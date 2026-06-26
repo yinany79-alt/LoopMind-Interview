@@ -18,6 +18,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from src.graph.prompt_utils import (
     extract_final_text,
+    extract_thinking_text,
+    llm_text,
     load_prompt,
     parse_action_line,
 )
@@ -143,7 +145,21 @@ async def run_interviewer(
             logger.exception("Interviewer LLM 调用失败: %s", e)
             final_text = "(模型暂时不可用,我们换一个题。)"
             break
-        text = resp.content if isinstance(resp.content, str) else str(resp.content)
+        text = llm_text(resp.content)
+        # MiMo 的 thinking blocks 单独透传到 thinking_step(reasoning content)
+        mimo_thinking = extract_thinking_text(resp.content)
+        if mimo_thinking:
+            step = {
+                "message_id": message_id,
+                "step_index": step_index,
+                "step_type": "thought",
+                "content": mimo_thinking[:1000],
+                "tool_name": None,
+                "tool_args": None,
+            }
+            thinking_steps.append(step)
+            yield {"event": "thinking_step", "data": step}
+            step_index += 1
 
         # 检测 Final
         if "Final" in text and ("Final Question:" in text or "Final:" in text):

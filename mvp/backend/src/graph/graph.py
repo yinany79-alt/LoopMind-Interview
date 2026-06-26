@@ -1,462 +1,504 @@
-"""主图编排 — 用 async coroutine 直接驱动各节点,事件 push 进 session.event_queue。
+"""主图编排 — LangGraph StateGraph(正式版,无手工调度)。
 
-主图状态机:
-  start()                  # SSE 连上后调
-    └── 选第一题 → run_opening → idle
-  on_answer(answer)        # 收到用户回答
-    └── run_evaluator → router 决策
-        ├── drill_down → run_drilldown → idle
-        └── next_topic → 选下一题 → run_opening / 或 end
+拓扑:
+                        ┌── _user_answer 已设 ──→ evaluator → router ─┐
+   START → dispatch ────┤                                              ├── drill_down → interviewer → END(等用户)
+                        └── 未设(首次/换题) ──→ next_topic ─→ interviewer → END
+                                                          │
+                                                          └── all_done ─→ END
+
+   router: ── drill_down ─→ interviewer → END
+           ── next_topic ─→ next_topic ─→ interviewer → END  (或 all_done → END)
+           ── end         ─→ END
+
+每次 ainvoke 跑一段(到 interviewer 后退出 / 或 END),由 orchestrator 决定何时再喂一次。
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import uuid
-from typing import Any, Dict, List, Optional
+from contextvars import ContextVar
+from typing import Any, Dict, Literal
+
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, START, StateGraph
 
 from src.graph.nodes.evaluator_subgraph import run_evaluator
 from src.graph.nodes.interviewer_subgraph import run_interviewer
 from src.graph.nodes.next_topic_generator import pick_next_topic
 from src.graph.nodes.router import (
-    MAX_DEPTH,
-    SATISFACTION_HIGH,
-    SATISFACTION_LOW,
     decide_next_action,
     detect_topic_finish_reason,
 )
 from src.graph.nodes.reporter import generate_report
-from src.graph.state import DIMENSIONS
+from src.graph.state import DIMENSIONS, InterviewState
 from src.knowledge.personas import get_card
 from src.session_store import Session
 
 logger = logging.getLogger(__name__)
 
+TYPEWRITER_CHUNK = 2
+TYPEWRITER_INTERVAL = 0.03
 
-# 打字机模拟参数
-TYPEWRITER_CHUNK = 2  # 每个 delta 推几个字
-TYPEWRITER_INTERVAL = 0.03  # 每个 delta 间隔(秒)
+# 事件 sink 用 ContextVar 透传,避免 LangGraph checkpointer 尝试序列化 asyncio.Queue
+_EVENT_SINK: ContextVar[asyncio.Queue | None] = ContextVar("_EVENT_SINK", default=None)
+
+
+# ===== 事件辅助 =====
+
+async def _emit(event: str, data: Dict[str, Any]) -> None:
+    sink = _EVENT_SINK.get()
+    if sink is not None:
+        await sink.put({"event": event, "data": data})
 
 
 async def _stream_message(
-    session: Session,
     message_id: str,
     full_text: str,
     mode: str,
     topic_id: str,
     topic_name: str,
     depth: int,
-    thinking_steps_count: int,
+    thinking_count: int,
 ) -> None:
-    """模拟打字机:把完整文本切成小块,以 delta 事件推送。"""
-    await session.push_event({
-        "event": "assistant_message_start",
-        "data": {
-            "message_id": message_id,
-            "mode": mode,
-            "topic_id": topic_id,
-            "topic_name": topic_name,
-            "depth": depth,
-        },
+    await _emit("assistant_message_start", {
+        "message_id": message_id, "mode": mode,
+        "topic_id": topic_id, "topic_name": topic_name, "depth": depth,
     })
-    # 按字切
-    text = full_text
     i = 0
-    while i < len(text):
-        chunk = text[i : i + TYPEWRITER_CHUNK]
+    while i < len(full_text):
+        chunk = full_text[i : i + TYPEWRITER_CHUNK]
         i += TYPEWRITER_CHUNK
-        await session.push_event({
-            "event": "assistant_message_delta",
-            "data": {"message_id": message_id, "delta": chunk},
-        })
+        await _emit("assistant_message_delta", {"message_id": message_id, "delta": chunk})
         await asyncio.sleep(TYPEWRITER_INTERVAL)
-    await session.push_event({
-        "event": "assistant_message_end",
-        "data": {
-            "message_id": message_id,
-            "full_text": full_text,
-            "thinking_steps_count": thinking_steps_count,
-        },
+    await _emit("assistant_message_end", {
+        "message_id": message_id, "full_text": full_text,
+        "thinking_steps_count": thinking_count,
     })
-    await session.push_event({
-        "event": "interviewer_state",
-        "data": {"state_id": "idle", "state_text": "等待回答", "ttl_ms": 0},
+    await _emit("interviewer_state", {
+        "state_id": "idle", "state_text": "等待回答", "ttl_ms": 0,
     })
 
 
-async def _emit_subgraph(session: Session, gen) -> Dict[str, Any]:
-    """跑一个 ReAct 子图 async generator,把事件 push,最后返回 _done.data。"""
-    done_data: Dict[str, Any] = {}
+async def _drain_subgraph(gen) -> Dict[str, Any]:
+    done: Dict[str, Any] = {}
     async for event in gen:
         if event.get("event") == "_done":
-            done_data = event.get("data", {})
+            done = event.get("data", {})
             break
-        await session.push_event(event)
-    return done_data
+        await _emit(event["event"], event["data"])
+    return done
 
 
-async def _start_topic(
-    session: Session,
-    topic_node: Dict[str, Any],
-    is_red_flag_hunt: bool,
-    is_first: bool,
-) -> None:
-    """切到新题:更新 state、推 topic_started、跑 OPENING/SWITCH 子图、打字机推消息。"""
-    state = session.state
-    # 把已结束的题存档
-    if state.get("current_topic_id") and state.get("current_topic_turns"):
+# ===================== StateGraph 节点 =====================
+
+async def dispatch_node(state: InterviewState) -> Dict[str, Any]:
+    """入口分发节点,纯路由。LangGraph 要求 node 至少写一个字段,这里只是续 turn_count。"""
+    return {"turn_count": state.get("turn_count", 0) + 1}
+
+
+async def interviewer_node(state: InterviewState) -> Dict[str, Any]:
+    mode = state.get("_interviewer_mode", "OPENING")  # type: ignore[arg-type]
+    message_id = f"m_{uuid.uuid4().hex[:8]}"
+    kwargs: Dict[str, Any] = {"message_id": message_id}
+
+    if mode == "DRILL_DOWN":
+        last_eval = state.get("last_eval") or {}
+        kwargs.update(
+            last_question=state.get("current_question", ""),
+            user_answer=state.get("_user_answer", ""),  # type: ignore[arg-type]
+            found_gaps=last_eval.get("found_gaps", []),
+            drill_down_target=last_eval.get("drill_down_target") or "",
+            drill_down_hint=last_eval.get("drill_down_hint") or "",
+            previous_satisfaction=state.get("_previous_satisfaction", 50),  # type: ignore[arg-type]
+            current_satisfaction=state.get("current_satisfaction", 50),
+            is_interrupted=state.get("is_interrupted", False),
+        )
+    elif mode == "SWITCH_TOPIC":
+        prev = (state.get("topics_covered") or [{}])[-1]
+        node = state.get("_pending_topic_node", {})  # type: ignore[arg-type]
+        kwargs.update(
+            prev_topic=prev.get("topic_name", ""),
+            prev_satisfaction=prev.get("final_satisfaction", 0),
+            next_topic=node.get("topic", ""),
+            next_topic_weight=float(node.get("weight", 1.0)),
+            next_depth_level=node.get("depth_level", "medium"),
+            next_topic_dimensions=node.get("dimensions", []),
+            is_red_flag_hunt=state.get("_is_red_flag_hunt", False),  # type: ignore[arg-type]
+        )
+
+    gen = run_interviewer(state, mode, **kwargs)
+    done = await _drain_subgraph(gen)
+    question = done.get("question") or "(模型无响应,我们换个方向。)"
+    thinking_count = len(done.get("thinking_steps") or [])
+
+    turns = list(state.get("current_topic_turns", []))
+    turns.append({
+        "role": "interviewer", "content": question,
+        "message_id": message_id, "thinking_steps_count": thinking_count,
+    })
+    history = list(state.get("chat_history", []))
+    history.append({
+        "role": "interviewer", "content": question, "message_id": message_id,
+        "topic_id": state.get("current_topic_id"),
+    })
+
+    # 写入 state 后再推消息(打字机依赖正确的 topic_id)
+    state["current_question"] = question
+    state["current_topic_turns"] = turns
+    state["chat_history"] = history
+
+    await _stream_message(
+        message_id=message_id,
+        full_text=question,
+        mode=("INTERRUPT" if state.get("is_interrupted") and mode == "DRILL_DOWN" else mode),
+        topic_id=state.get("current_topic_id", ""),
+        topic_name=state.get("current_topic_name", ""),
+        depth=state.get("current_depth", 0),
+        thinking_count=thinking_count,
+    )
+
+    return {
+        "current_question": question,
+        "current_topic_turns": turns,
+        "chat_history": history,
+        # 重置 _user_answer 占位,等下次用户回答
+        "_user_answer": "",
+        "_interviewer_done": True,
+    }
+
+
+async def evaluator_node(state: InterviewState) -> Dict[str, Any]:
+    user_answer = state.get("_user_answer", "")  # type: ignore[arg-type]
+    last_question = state.get("current_question", "")
+    turn_id = state.get("_current_turn_id", f"t_{uuid.uuid4().hex[:8]}")  # type: ignore[arg-type]
+    prev_sat = state.get("current_satisfaction", 50)
+
+    await _emit("interviewer_state", {
+        "state_id": "silent_pause", "state_text": "面试官沉默了几秒...", "ttl_ms": 2000,
+    })
+
+    history = list(state.get("chat_history", []))
+    history.append({"role": "user", "content": user_answer,
+                    "topic_id": state.get("current_topic_id")})
+    turns = list(state.get("current_topic_turns", []))
+    turns.append({"role": "user", "content": user_answer})
+
+    is_interrupted = len(user_answer) > 500
+
+    gen = run_evaluator(
+        state,
+        turn_id=turn_id, last_question=last_question,
+        user_answer=user_answer, previous_satisfaction=prev_sat,
+    )
+    done = await _drain_subgraph(gen)
+    evaluation = done.get("evaluation") or {}
+
+    weight = float(state.get("current_topic_weight", 1.0))
+    ds = dict(state.get("dimension_scores") or {d: 0.0 for d in DIMENSIONS})
+    for d in DIMENSIONS:
+        ds[d] = float(ds.get(d, 0.0)) + float(evaluation.get("dimension_deltas", {}).get(d, 0)) * weight
+
+    new_sat = int(evaluation.get("current_satisfaction", prev_sat))
+
+    new_flags = list(state.get("red_flags") or []) + list(evaluation.get("red_flags_to_add") or [])
+    new_spots = list(state.get("bright_spots") or []) + list(evaluation.get("bright_spots_to_add") or [])
+
+    await _emit("satisfaction_update", {
+        "topic_id": state.get("current_topic_id"),
+        "previous_value": prev_sat, "new_value": new_sat,
+        "delta": new_sat - prev_sat,
+    })
+    for f in evaluation.get("red_flags_to_add") or []:
+        await _emit("red_flag_added", {"flag": f})
+    for s in evaluation.get("bright_spots_to_add") or []:
+        await _emit("bright_spot_added", {"spot": s})
+
+    if prev_sat < 80 <= new_sat:
+        await _emit("interviewer_state", {
+            "state_id": "leaning_forward", "state_text": "面试官身体前倾...", "ttl_ms": 3000,
+        })
+    elif prev_sat > 20 >= new_sat:
+        await _emit("interviewer_state", {
+            "state_id": "frowning", "state_text": "面试官在皱眉...", "ttl_ms": 3000,
+        })
+
+    return {
+        "chat_history": history,
+        "current_topic_turns": turns,
+        "current_satisfaction": new_sat,
+        "last_eval": evaluation,
+        "dimension_scores": ds,
+        "red_flags": new_flags,
+        "bright_spots": new_spots,
+        "is_interrupted": is_interrupted,
+        "_previous_satisfaction": prev_sat,
+        "_user_answer": "",  # 清空,避免 dispatch 路由重复进入 evaluator
+    }
+
+
+async def router_node(state: InterviewState) -> Dict[str, Any]:
+    action = decide_next_action(state)
+    out: Dict[str, Any] = {"next_action": action}
+    if action == "drill_down":
+        out["current_depth"] = state.get("current_depth", 0) + 1
+        out["_interviewer_mode"] = "DRILL_DOWN"
+    return out
+
+
+async def next_topic_node(state: InterviewState) -> Dict[str, Any]:
+    new_sat = state.get("current_satisfaction", 50)
+
+    # 归档本题(只在已有 current_topic 时归档)
+    covered = list(state.get("topics_covered", []))
+    if state.get("current_topic_id"):
+        reason = detect_topic_finish_reason(state)
         cov = {
             "topic_id": state.get("current_topic_id"),
             "topic_name": state.get("current_topic_name"),
             "topic_weight": state.get("current_topic_weight"),
             "turns": list(state.get("current_topic_turns", [])),
-            "final_satisfaction": state.get("current_satisfaction"),
+            "final_satisfaction": new_sat,
             "evaluator_comment": (state.get("last_eval") or {}).get("drill_down_hint") or "",
         }
-        state.setdefault("topics_covered", []).append(cov)
-
-    # 更新 current_*
-    state["current_topic_id"] = topic_node.get("id", "")
-    state["current_topic_name"] = topic_node.get("topic", "")
-    state["current_topic_weight"] = float(topic_node.get("weight", 1.0))
-    state["current_topic_dimensions"] = list(topic_node.get("dimensions", []))
-    state["current_depth"] = 0
-    state["current_topic_turns"] = []
-    state["current_satisfaction"] = 50
-    state["last_eval"] = None
-    state["next_action"] = ""
-
-    await session.push_event({
-        "event": "topic_started",
-        "data": {
-            "topic_id": topic_node.get("id"),
-            "topic_name": topic_node.get("topic"),
-            "weight": topic_node.get("weight"),
-            "depth_level": topic_node.get("depth_level"),
-            "is_red_flag_hunt": is_red_flag_hunt,
-        },
-    })
-
-    # 5 题门槛检查
-    covered = len(state.get("topics_covered", []))
-    if covered == state.get("min_topics_threshold", 5):
-        await session.push_event({
-            "event": "min_topics_reached",
-            "data": {"covered_count": covered},
+        covered.append(cov)
+        await _emit("topic_finished", {
+            "topic_id": cov["topic_id"], "reason": reason, "final_satisfaction": new_sat,
         })
 
-    message_id = f"m_{uuid.uuid4().hex[:8]}"
-    mode = "OPENING" if is_first else "SWITCH_TOPIC"
+    if len(covered) == state.get("min_topics_threshold", 5):
+        await _emit("min_topics_reached", {"covered_count": len(covered)})
 
-    # 跑子图
-    if mode == "OPENING":
-        gen = run_interviewer(state, "OPENING", message_id=message_id)
-    else:
-        # SWITCH_TOPIC 需要 prev_*
-        prev = (state.get("topics_covered") or [{}])[-1]
-        gen = run_interviewer(
-            state,
-            "SWITCH_TOPIC",
-            message_id=message_id,
-            prev_topic=prev.get("topic_name", ""),
-            prev_satisfaction=prev.get("final_satisfaction", 0),
-            next_topic=topic_node.get("topic"),
-            next_topic_weight=float(topic_node.get("weight", 1.0)),
-            next_depth_level=topic_node.get("depth_level", "medium"),
-            next_topic_dimensions=topic_node.get("dimensions", []),
-            is_red_flag_hunt=is_red_flag_hunt,
-        )
+    if state.get("current_topic_id"):
+        await _emit("interviewer_state", {
+            "state_id": "pen_down", "state_text": "面试官放下了笔...", "ttl_ms": 2000,
+        })
 
-    done = await _emit_subgraph(session, gen)
-    question = done.get("question") or "(模型无响应,请重试)"
-    thinking_count = len(done.get("thinking_steps") or [])
+    # 选下一题(用 state 副本带 topics_covered 给 picker)
+    state_copy = dict(state)
+    state_copy["topics_covered"] = covered
+    pick = await pick_next_topic(state_copy)
 
-    state["current_question"] = question
-    state.setdefault("current_topic_turns", []).append({
-        "role": "interviewer",
-        "content": question,
-        "message_id": message_id,
-        "thinking_steps_count": thinking_count,
-    })
-    state.setdefault("chat_history", []).append({
-        "role": "interviewer",
-        "content": question,
-        "message_id": message_id,
-        "topic_id": topic_node.get("id"),
+    if not pick:
+        return {
+            "topics_covered": covered,
+            "_all_done": True,
+            "next_action": "end",
+        }
+
+    node = pick["node"]
+    is_first = len(covered) == 0
+
+    await _emit("topic_started", {
+        "topic_id": node.get("id"), "topic_name": node.get("topic"),
+        "weight": node.get("weight"), "depth_level": node.get("depth_level"),
+        "is_red_flag_hunt": pick.get("is_red_flag_hunt", False),
     })
 
-    await _stream_message(
-        session,
-        message_id=message_id,
-        full_text=question,
-        mode=mode,
-        topic_id=topic_node.get("id", ""),
-        topic_name=topic_node.get("topic", ""),
-        depth=0,
-        thinking_steps_count=thinking_count,
+    return {
+        "topics_covered": covered,
+        "current_topic_id": node.get("id", ""),
+        "current_topic_name": node.get("topic", ""),
+        "current_topic_weight": float(node.get("weight", 1.0)),
+        "current_topic_dimensions": list(node.get("dimensions", [])),
+        "current_depth": 0,
+        "current_topic_turns": [],
+        "current_satisfaction": 50,
+        "last_eval": None,
+        "_pending_topic_node": node,
+        "_is_red_flag_hunt": pick.get("is_red_flag_hunt", False),
+        "_interviewer_mode": "OPENING" if is_first else "SWITCH_TOPIC",
+        "_all_done": False,
+        "next_action": "",
+    }
+
+
+# ===================== 条件边路由 =====================
+
+def _route_from_dispatch(state: InterviewState) -> Literal["evaluator", "next_topic"]:
+    """有 _user_answer → evaluator(续推);否则 → next_topic(开场/换题)。"""
+    if state.get("_user_answer"):
+        return "evaluator"
+    return "next_topic"
+
+
+def _route_after_router(state: InterviewState) -> Literal["drill_down", "next_topic", "end"]:
+    action = state.get("next_action") or "drill_down"
+    if action == "drill_down":
+        return "drill_down"
+    if action == "next_topic":
+        return "next_topic"
+    return "end"
+
+
+def _route_after_next_topic(state: InterviewState) -> Literal["interview", "end"]:
+    return "end" if state.get("_all_done") else "interview"
+
+
+# ===================== Graph 构建 =====================
+
+def build_graph():
+    g = StateGraph(InterviewState)
+
+    g.add_node("dispatch", dispatch_node)
+    g.add_node("interviewer", interviewer_node)
+    g.add_node("evaluator", evaluator_node)
+    g.add_node("router", router_node)
+    g.add_node("next_topic", next_topic_node)
+
+    g.add_edge(START, "dispatch")
+    g.add_conditional_edges(
+        "dispatch", _route_from_dispatch,
+        {"evaluator": "evaluator", "next_topic": "next_topic"},
     )
+
+    # evaluator → router
+    g.add_edge("evaluator", "router")
+    g.add_conditional_edges(
+        "router", _route_after_router,
+        {"drill_down": "interviewer", "next_topic": "next_topic", "end": END},
+    )
+
+    # next_topic → interviewer (or END)
+    g.add_conditional_edges(
+        "next_topic", _route_after_next_topic,
+        {"interview": "interviewer", "end": END},
+    )
+
+    # interviewer 之后:每次跑到 END(等用户输入)
+    g.add_edge("interviewer", END)
+
+    return g.compile(checkpointer=MemorySaver())
+
+
+_GRAPH = None
+
+
+def get_graph():
+    global _GRAPH
+    if _GRAPH is None:
+        _GRAPH = build_graph()
+    return _GRAPH
+
+
+# ===================== Orchestrator =====================
+
+def _thread_config(session: Session) -> Dict[str, Any]:
+    return {"configurable": {"thread_id": session.session_id}, "recursion_limit": 50}
+
+
+async def _pump_sink(session: Session, sink: asyncio.Queue, stop: asyncio.Event) -> None:
+    while True:
+        try:
+            ev = await asyncio.wait_for(sink.get(), timeout=0.3)
+        except asyncio.TimeoutError:
+            if stop.is_set():
+                while not sink.empty():
+                    ev = sink.get_nowait()
+                    await session.push_event(ev)
+                return
+            continue
+        await session.push_event(ev)
+
+
+async def _run_graph(session: Session, inputs: Dict[str, Any]) -> None:
+    graph = get_graph()
+    cfg = _thread_config(session)
+    sink: asyncio.Queue = asyncio.Queue()
+    stop = asyncio.Event()
+    pump = asyncio.create_task(_pump_sink(session, sink, stop))
+
+    token = _EVENT_SINK.set(sink)
+    try:
+        result = await graph.ainvoke(inputs, config=cfg)
+        for k, v in result.items():
+            session.state[k] = v
+    finally:
+        _EVENT_SINK.reset(token)
+        stop.set()
+        await pump
 
 
 async def start_interview(session: Session) -> None:
-    """SSE 连上后启动:推 session_started + 第一题。"""
+    """SSE 连上后:推 session_started,跑 graph 从 START → next_topic → interviewer → END。"""
     if session.graph_started:
         return
     session.graph_started = True
 
     state = session.state
     card = get_card(state.get("persona_card_id", ""))
-    persona_payload = {
-        "card_id": state.get("persona_card_id", ""),
-        "name": (card or {}).get("name", ""),
-        "dimensions": state.get("persona_dimensions", {}),
-    }
     await session.push_event({
         "event": "session_started",
-        "data": {"session_id": session.session_id, "persona": persona_payload},
+        "data": {
+            "session_id": session.session_id,
+            "persona": {
+                "card_id": state.get("persona_card_id", ""),
+                "name": (card or {}).get("name", ""),
+                "dimensions": state.get("persona_dimensions", {}),
+            },
+        },
     })
 
-    # 选第一题
-    pick = await pick_next_topic(state)
-    if not pick:
-        await session.push_event({
-            "event": "error",
-            "data": {
-                "error_code": "INTERNAL",
-                "message": "skill_tree 为空,无法开始面试",
-                "recoverable": False,
-            },
-        })
-        return
-
-    await _start_topic(
-        session,
-        pick["node"],
-        is_red_flag_hunt=pick.get("is_red_flag_hunt", False),
-        is_first=True,
-    )
+    # 首次:把整份 state 喂进去
+    await _run_graph(session, dict(state))
     session.status = "running"
 
 
-def _apply_evaluation(state: Dict[str, Any], evaluation: Dict[str, Any]) -> Dict[str, Any]:
-    """把 Evaluator 输出累积到 state(dimension_scores / red_flags / bright_spots)。"""
-    prev_sat = state.get("current_satisfaction", 50)
-    weight = float(state.get("current_topic_weight", 1.0))
-
-    # 累积 dimension_deltas
-    ds = state.setdefault("dimension_scores", {d: 0.0 for d in DIMENSIONS})
-    for d in DIMENSIONS:
-        ds[d] = float(ds.get(d, 0.0)) + float(evaluation["dimension_deltas"].get(d, 0)) * weight
-
-    # 更新满意度
-    state["current_satisfaction"] = evaluation["current_satisfaction"]
-
-    # 累积红牌 / 亮点
-    new_flags = evaluation.get("red_flags_to_add") or []
-    new_spots = evaluation.get("bright_spots_to_add") or []
-    state.setdefault("red_flags", []).extend(new_flags)
-    state.setdefault("bright_spots", []).extend(new_spots)
-
-    state["last_eval"] = evaluation
-    return {
-        "previous_satisfaction": prev_sat,
-        "current_satisfaction": evaluation["current_satisfaction"],
-        "new_flags": new_flags,
-        "new_spots": new_spots,
-    }
-
-
 async def on_user_answer(session: Session, content: str, turn_id: str) -> None:
-    """用户提交回答后的整条流水:evaluator → router → drill_down / next_topic / end。"""
-    state = session.state
-    last_question = state.get("current_question", "")
-    user_msg_id = f"u_{uuid.uuid4().hex[:8]}"
+    """用户回答:从 START 再跑一遍,dispatch 会因 _user_answer 走 evaluator。
 
-    # 把回答存入历史
-    state.setdefault("chat_history", []).append({
-        "role": "user",
-        "content": content,
-        "message_id": user_msg_id,
-        "topic_id": state.get("current_topic_id"),
-    })
-    state.setdefault("current_topic_turns", []).append({
-        "role": "user",
-        "content": content,
-        "message_id": user_msg_id,
-    })
-
-    # 打断检测
-    is_interrupted = len(content) > 500
-    state["is_interrupted"] = is_interrupted
-
-    # 短暂"沉默"
-    await session.push_event({
-        "event": "interviewer_state",
-        "data": {"state_id": "silent_pause", "state_text": "面试官沉默了几秒...", "ttl_ms": 2000},
-    })
-
-    # ===== Evaluator =====
-    prev_sat = state.get("current_satisfaction", 50)
-    eval_gen = run_evaluator(
-        state,
-        turn_id=turn_id,
-        last_question=last_question,
-        user_answer=content,
-        previous_satisfaction=prev_sat,
-    )
-    eval_done = await _emit_subgraph(session, eval_gen)
-    evaluation = eval_done.get("evaluation") or {}
-
-    applied = _apply_evaluation(state, evaluation)
-    # satisfaction_update
-    new_sat = applied["current_satisfaction"]
-    await session.push_event({
-        "event": "satisfaction_update",
-        "data": {
-            "topic_id": state.get("current_topic_id"),
-            "previous_value": applied["previous_satisfaction"],
-            "new_value": new_sat,
-            "delta": new_sat - applied["previous_satisfaction"],
-        },
-    })
-    # 红牌 / 亮点动画
-    for f in applied["new_flags"]:
-        await session.push_event({"event": "red_flag_added", "data": {"flag": f}})
-    for s in applied["new_spots"]:
-        await session.push_event({"event": "bright_spot_added", "data": {"spot": s}})
-
-    # 满意度跨阈值的"心情"切换
-    if applied["previous_satisfaction"] < 80 <= new_sat:
-        await session.push_event({
-            "event": "interviewer_state",
-            "data": {"state_id": "leaning_forward", "state_text": "面试官身体前倾...", "ttl_ms": 3000},
-        })
-    elif applied["previous_satisfaction"] > 20 >= new_sat:
-        await session.push_event({
-            "event": "interviewer_state",
-            "data": {"state_id": "frowning", "state_text": "面试官在皱眉...", "ttl_ms": 3000},
-        })
-
-    # ===== Router =====
-    action = decide_next_action(state)
-    state["next_action"] = action
-
-    if action == "drill_down":
-        state["current_depth"] = state.get("current_depth", 0) + 1
-        message_id = f"m_{uuid.uuid4().hex[:8]}"
-        gen = run_interviewer(
-            state,
-            "DRILL_DOWN",
-            message_id=message_id,
-            last_question=last_question,
-            user_answer=content,
-            found_gaps=evaluation.get("found_gaps", []),
-            drill_down_target=evaluation.get("drill_down_target") or "",
-            drill_down_hint=evaluation.get("drill_down_hint") or "",
-            previous_satisfaction=applied["previous_satisfaction"],
-            current_satisfaction=new_sat,
-            is_interrupted=is_interrupted,
-        )
-        done = await _emit_subgraph(session, gen)
-        question = done.get("question") or "(模型无响应)"
-        thinking_count = len(done.get("thinking_steps") or [])
-
-        state["current_question"] = question
-        state.setdefault("current_topic_turns", []).append({
-            "role": "interviewer",
-            "content": question,
-            "message_id": message_id,
-            "thinking_steps_count": thinking_count,
-        })
-        state.setdefault("chat_history", []).append({
-            "role": "interviewer",
-            "content": question,
-            "message_id": message_id,
-            "topic_id": state.get("current_topic_id"),
-        })
-        await _stream_message(
-            session,
-            message_id=message_id,
-            full_text=question,
-            mode="INTERRUPT" if is_interrupted else "DRILL_DOWN",
-            topic_id=state.get("current_topic_id", ""),
-            topic_name=state.get("current_topic_name", ""),
-            depth=state["current_depth"],
-            thinking_steps_count=thinking_count,
-        )
-        return
-
-    if action == "next_topic":
-        # 收尾本题
-        reason = detect_topic_finish_reason(state)
-        await session.push_event({
-            "event": "topic_finished",
-            "data": {
-                "topic_id": state.get("current_topic_id"),
-                "reason": reason,
-                "final_satisfaction": new_sat,
-            },
-        })
-        await session.push_event({
-            "event": "interviewer_state",
-            "data": {"state_id": "pen_down", "state_text": "面试官放下了笔...", "ttl_ms": 2000},
-        })
-        # 选下一题
-        pick = await pick_next_topic(state)
-        if not pick:
-            # 题目用尽 → 自然结束
-            await _natural_end(session)
-            return
-        await _start_topic(
-            session,
-            pick["node"],
-            is_red_flag_hunt=pick.get("is_red_flag_hunt", False),
-            is_first=False,
-        )
-        return
-
-    if action == "end":
+    checkpointer 保证 thread_id 对应的 state 被持续累积;
+    我们只把"本轮新增"字段当 inputs 喂进去,LangGraph 默认 merge。
+    """
+    inputs = {
+        "_user_answer": content,
+        "_current_turn_id": turn_id,
+        # 这些是新一轮的 transient 输入,LangGraph 的 default reducer 会替换它们
+    }
+    await _run_graph(session, inputs)
+    # 跑完后:可能停在 interviewer(等下一次用户输入)或 END(_all_done)
+    if session.state.get("_all_done"):
         await _natural_end(session)
-        return
 
 
 async def _natural_end(session: Session) -> None:
-    """题目耗尽 / Router 决定 end 时调。不立即生成报告,等 /end 接口触发。"""
-    # 把当前 topic 也存档
     state = session.state
-    if state.get("current_topic_id") and state.get("current_topic_turns"):
-        cov = {
+    if state.get("current_topic_id") and state.get("current_topic_turns") and not _topic_archived(state):
+        state.setdefault("topics_covered", []).append({
             "topic_id": state.get("current_topic_id"),
             "topic_name": state.get("current_topic_name"),
             "topic_weight": state.get("current_topic_weight"),
             "turns": list(state.get("current_topic_turns", [])),
             "final_satisfaction": state.get("current_satisfaction"),
-        }
-        # 避免重复(start_topic 会再存一次)
-        if not any(
-            c.get("topic_id") == cov["topic_id"]
-            and c.get("turns") == cov["turns"]
-            for c in state.get("topics_covered", [])
-        ):
-            state.setdefault("topics_covered", []).append(cov)
+        })
 
     below_min = len(state.get("topics_covered", [])) < state.get("min_topics_threshold", 5)
-    await session.push_event({
-        "event": "session_ended",
-        "data": {
-            "reason": "natural_end",
-            "report_ready_eta_ms": 5000,
-            "below_minimum": below_min,
-        },
-    })
-    session.status = "ended"
+    if session.status != "ended":
+        await session.push_event({
+            "event": "session_ended",
+            "data": {
+                "reason": "natural_end",
+                "report_ready_eta_ms": 5000,
+                "below_minimum": below_min,
+            },
+        })
+        session.status = "ended"
+
+
+def _topic_archived(state: Dict[str, Any]) -> bool:
+    tid = state.get("current_topic_id")
+    turns = state.get("current_topic_turns", [])
+    for c in state.get("topics_covered", []):
+        if c.get("topic_id") == tid and c.get("turns") == turns:
+            return True
+    return False
 
 
 async def on_user_end(session: Session, reason: str = "user_initiated") -> None:
-    """/end 接口触发:推 session_ended,异步生成 report。"""
     state = session.state
     state["user_requested_end"] = True
-    # 把 current topic 存档
+
     if state.get("current_topic_id") and state.get("current_topic_turns") and not _topic_archived(state):
         state.setdefault("topics_covered", []).append({
             "topic_id": state.get("current_topic_id"),
@@ -478,25 +520,14 @@ async def on_user_end(session: Session, reason: str = "user_initiated") -> None:
         })
         session.status = "ended"
 
-    # 异步生成报告
     if session.report_status in ("pending", "failed"):
         session.report_status = "generating"
         asyncio.create_task(_run_report(session))
 
 
-def _topic_archived(state: Dict[str, Any]) -> bool:
-    tid = state.get("current_topic_id")
-    turns = state.get("current_topic_turns", [])
-    for c in state.get("topics_covered", []):
-        if c.get("topic_id") == tid and c.get("turns") == turns:
-            return True
-    return False
-
-
 async def _run_report(session: Session) -> None:
     try:
-        report = await generate_report(session.state)
-        session.report = report
+        session.report = await generate_report(session.state)
         session.report_status = "ready"
     except Exception as e:
         logger.exception("Report 生成失败: %s", e)

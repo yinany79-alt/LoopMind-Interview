@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import HumanMessage
 
-from src.graph.prompt_utils import extract_json_block, load_prompt
+from src.graph.prompt_utils import extract_json_block, llm_text, load_prompt
 from src.llm import get_evaluator_llm
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ async def pick_next_topic(state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         )
         llm = get_evaluator_llm()
         resp = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = resp.content if isinstance(resp.content, str) else str(resp.content)
+        text = llm_text(resp.content)
         data = extract_json_block(text)
         if data and data.get("topic_id"):
             tid = data["topic_id"]

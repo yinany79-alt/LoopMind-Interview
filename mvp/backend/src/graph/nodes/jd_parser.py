@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from langchain_core.messages import HumanMessage
 
-from src.graph.prompt_utils import extract_json_block, load_prompt
+from src.graph.prompt_utils import extract_json_block, llm_text, load_prompt
 from src.llm import get_evaluator_llm
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ async def parse_jd(jd_text: str) -> Dict[str, Any]:
     llm = get_evaluator_llm()
     try:
         resp = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = resp.content if isinstance(resp.content, str) else str(resp.content)
+        text = llm_text(resp.content)
         data = extract_json_block(text)
         if not data or "skill_tree" not in data:
             logger.warning("JD Parser 解析失败,使用兜底 skill_tree。原始: %s", text[:300])

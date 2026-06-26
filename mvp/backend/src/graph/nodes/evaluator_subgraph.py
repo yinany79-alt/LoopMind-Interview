@@ -13,6 +13,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from src.graph.prompt_utils import (
     extract_json_block,
+    extract_thinking_text,
+    llm_text,
     load_prompt,
     parse_action_line,
 )
@@ -154,7 +156,21 @@ async def run_evaluator(
         except Exception as e:
             logger.exception("Evaluator LLM 调用失败: %s", e)
             break
-        text = resp.content if isinstance(resp.content, str) else str(resp.content)
+        text = llm_text(resp.content)
+        # Anthropic thinking blocks → 推 thinking_step
+        anth_thinking = extract_thinking_text(resp.content)
+        if anth_thinking:
+            step = {
+                "message_id": message_id,
+                "step_index": step_index,
+                "step_type": "thought",
+                "content": anth_thinking[:1000],
+                "tool_name": None,
+                "tool_args": None,
+            }
+            thinking_steps.append(step)
+            yield {"event": "thinking_step", "data": step}
+            step_index += 1
 
         # 优先看是否给了 Final JSON
         if "Final" in text or text.strip().startswith("{"):

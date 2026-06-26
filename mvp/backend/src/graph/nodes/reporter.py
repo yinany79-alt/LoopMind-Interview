@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 from langchain_core.messages import HumanMessage
 
-from src.graph.prompt_utils import extract_json_block, load_prompt
+from src.graph.prompt_utils import extract_json_block, llm_text, load_prompt
 from src.graph.state import DIMENSIONS
 from src.llm import get_evaluator_llm
 
@@ -87,7 +87,7 @@ async def generate_report(state: Dict[str, Any]) -> Dict[str, Any]:
     llm = get_evaluator_llm()
     try:
         resp = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = resp.content if isinstance(resp.content, str) else str(resp.content)
+        text = llm_text(resp.content)
         data = extract_json_block(text)
     except Exception as e:
         logger.exception("Reporter LLM 失败: %s", e)

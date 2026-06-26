@@ -27,12 +27,13 @@ uvicorn src.main:app --port 8000 --reload
 
 ## 模型分工
 
-| 模块 | 模型 | 备注 |
-|---|---|---|
-| JD Parser | Claude Opus 4.8 | 结构化输出,判断要稳 |
-| Evaluator | Claude Opus 4.8 | 评估的灵魂,不能省 |
-| Reporter | Claude Opus 4.8 | 最终报告 |
-| Interviewer | DeepSeek V4 Pro(可选) / Claude Opus 4.8 | 默认 Claude,有 DEEPSEEK_API_KEY 时切换 |
+| 模块 | 模型 | 走哪个网关 | env 字段 |
+|---|---|---|---|
+| JD Parser / Evaluator / Reporter | Claude Opus 4.7 | 京东云中转 | `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL` / `ANTHROPIC_OPUS_MODEL` |
+| Interviewer / Drill-down | 小米 MiMo (`mimo-v2.5-pro`) | MiMo Anthropic 兼容 | `MIMO_AUTH_TOKEN` / `MIMO_BASE_URL` / `MIMO_MODEL` |
+
+两个网关都实现 Anthropic Messages API,代码上是两份 `ChatAnthropic` 实例;
+如果没配 `MIMO_AUTH_TOKEN`,Interviewer 自动回落到 Claude(联调期无 MiMo 可用时方便)。
 
 ## 目录结构
 
