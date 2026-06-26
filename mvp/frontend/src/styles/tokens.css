@@ -1,0 +1,20 @@
+/* Design tokens — see mvp/docs/前端设计.md §0.1 */
+:root {
+  --bg-primary: #FAFAF7;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F0EFEA;
+
+  --text-primary: #1A1A1A;
+  --text-secondary: #4A4A4A;
+  --text-tertiary: #8A8A8A;
+
+  --accent: #C96442;
+  --accent-soft: #E8D5C9;
+
+  --border: #E5E3DC;
+  --divider: #EFEDE5;
+
+  --good: #5C9A6F;
+  --mid: #C9A348;
+  --bad: #B95C5C;
+}

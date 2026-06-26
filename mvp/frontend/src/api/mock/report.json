@@ -1,0 +1,131 @@
+{
+  "session_id": "mock-session",
+  "status": "ready",
+  "generated_at": "2026-06-25T15:10:00Z",
+  "verdict": {
+    "level": "P6+",
+    "level_confidence": "medium",
+    "overall_score": 72,
+    "summary": "对 Agent Loop 原理有清晰理解,在 Tool Use / MCP 上能下沉到具体细节,但缺乏第一手 Claude Code 重度使用经验,竞品认知停留在公开报道层。"
+  },
+  "dimension_scores": {
+    "agent_product_taste": 78,
+    "tech_understanding": 80,
+    "product_methodology": 65,
+    "user_empathy": 60,
+    "first_hand_experience": 45
+  },
+  "comments": [
+    { "type": "strength", "text": "Agent Loop 与 stop condition 的设计思路阐述清晰,能区分'循环'和'回合'两类形态" },
+    { "type": "strength", "text": "在 MCP 上不停留在'协议'层,能讲到 stdio transport 和工具描述如何影响调用准确率" },
+    { "type": "weakness", "text": "Claude Code 的体验描述偏二手,缺乏'你自己被哪个细节打动'的真实场景" },
+    { "type": "weakness", "text": "对 Cursor / Devin 的产品差异认知止于宣传口径,没有形成基于真实使用的判断" },
+    { "type": "weakness", "text": "对 Agent 度量体系的设计是合理列举,但没有给出'你会优先看哪个'的取舍" }
+  ],
+  "topic_replays": [
+    {
+      "topic_id": "agent_loop",
+      "topic_name": "Agent Loop 与产品形态",
+      "turns": [
+        {
+          "role": "interviewer",
+          "content": "你怎么理解 Agent Loop?它和传统的 chatbot 在产品形态上最大差别在哪?",
+          "thinking": "Thought: 开场题,先看候选人能不能区分回合制对话和持续循环。\nTool: query_standard_answer(topic=\"Agent Loop\")\nObservation: 标准答案核心:连续多步、stop condition 自决、Tool Use 闭环。\nFinal: 给出开场问题。"
+        },
+        {
+          "role": "user",
+          "content": "Agent Loop 是模型在一个目标驱动的循环里反复决定下一步,自己调用工具、自己看结果、自己判断要不要停。相比 chatbot 的一问一答,它是任务驱动而不是对话驱动,产品形态从'聊天框'变成了'代我做事'。"
+        },
+        {
+          "role": "interviewer",
+          "content": "stop condition 这块你会怎么设计?完全交给模型自决吗?",
+          "thinking": "Thought: 用户回答触及了'自决'但没具体讲 stop condition 怎么设。\nTool: query_standard_answer(topic=\"stop_condition\")\nFinal: 顺着 stop condition 追问深挖。"
+        },
+        {
+          "role": "user",
+          "content": "纯自决不行。我会用三层 stop:硬上限(step 数 / token / 时间)+ 模型自报完成 + 用户中断。Claude Code 的做法很像 — Auto-Accept 关掉时每个工具调用都让用户确认,这是用 UI 把 stop 的决定权切给用户。"
+        }
+      ],
+      "final_satisfaction": 82,
+      "evaluator_comment": "对 Agent Loop 原理理解到位,主动联想到 Claude Code 的 Auto-Accept 是亮点。如果能进一步谈'用户中断'的体验设计会更完整。"
+    },
+    {
+      "topic_id": "tool_use",
+      "topic_name": "Tool Use 与 MCP",
+      "turns": [
+        {
+          "role": "interviewer",
+          "content": "MCP 解决了什么问题?和直接在 prompt 里塞工具描述的差别是什么?",
+          "thinking": "Thought: 看候选人在协议层和 prompt 层的区分。"
+        },
+        {
+          "role": "user",
+          "content": "MCP 把'工具是什么'从应用层下沉到协议层。以前每个 agent 都要自己写一套工具描述,现在 server 声明一次,所有 client 都能发现并用。stdio transport 那部分让它对插件式扩展特别友好 — 不需要 HTTP server,起个进程就能挂上。"
+        }
+      ],
+      "final_satisfaction": 78,
+      "evaluator_comment": "提到 stdio transport 是加分项,说明不只是看过介绍文章。但没有讲到'工具描述质量直接决定调用准确率'这一层。"
+    },
+    {
+      "topic_id": "claude_code_taste",
+      "topic_name": "Claude Code 的产品品味",
+      "turns": [
+        {
+          "role": "interviewer",
+          "content": "你用 Claude Code 时,什么时刻会让你觉得'这个模型行为有品味'?",
+          "thinking": "Thought: 这是 first_hand 题,要看候选人是真用过还是看博客。"
+        },
+        {
+          "role": "user",
+          "content": "嗯...它在你让它改代码时,会先 grep 看上下文再动手,而不是直接猜。这种'先看再做'的习惯像一个有经验的工程师。"
+        },
+        {
+          "role": "interviewer",
+          "content": "具体到一次?哪个项目、什么场景、它的'先 grep'让你避免了什么坑?",
+          "thinking": "Thought: 用户给的是抽象判断,要追问具体场景验真伪。\nFinal: drill_down first_hand。"
+        },
+        {
+          "role": "user",
+          "content": "...我...我主要是看演示视频和文档,没有自己重度跑过完整项目。"
+        }
+      ],
+      "final_satisfaction": 35,
+      "evaluator_comment": "前两轮答得有品味,但 drill 到具体场景就承认没真用过。red_flag: 一手体验缺失。"
+    },
+    {
+      "topic_id": "competitor_landscape",
+      "topic_name": "Cursor / Devin 竞品认知",
+      "turns": [
+        {
+          "role": "interviewer",
+          "content": "Cursor 和 Claude Code 在产品形态上最核心的差别是什么?",
+          "thinking": "Thought: 上一题已经暴露一手经验不足,这题继续验证认知深度。"
+        },
+        {
+          "role": "user",
+          "content": "Cursor 是 IDE 内嵌,以编辑器为中心,把 AI 当成'增强版补全';Claude Code 是 CLI,以会话为中心,把 AI 当成'代我执行'。前者是 inline 补全心智,后者是 agent 心智。"
+        }
+      ],
+      "final_satisfaction": 60,
+      "evaluator_comment": "概念区分是对的,但没讲到'两边在 context 管理、工具调用范围、用户介入时机'这些更具体的产品决策差异。"
+    },
+    {
+      "topic_id": "metric_design",
+      "topic_name": "如何度量 Agent 产品的好坏",
+      "turns": [
+        {
+          "role": "interviewer",
+          "content": "你是 Claude Code PM,只能选三个北极星指标,你选什么?为什么?",
+          "thinking": "Thought: 看候选人在指标取舍上的判断,而不是罗列。"
+        },
+        {
+          "role": "user",
+          "content": "第一个 task completion rate(用户开的任务能闭环完成的比例),第二个 unattended steps(用户不介入就完成的步骤占比,反映模型自主性),第三个 weekly active sessions(周活会话数,反映粘性)。前两个看产品好不好用,第三个看用户回不回来。"
+        }
+      ],
+      "final_satisfaction": 72,
+      "evaluator_comment": "三个指标都是合理选择且能给出理由,但缺少'你会先优化哪个、为什么'的优先级判断 — 这是 PM 应有的能力。"
+    }
+  ],
+  "below_minimum": false
+}

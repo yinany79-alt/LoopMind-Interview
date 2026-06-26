@@ -1,0 +1,5 @@
+{
+  "session_id": "mock-session",
+  "status": "ready",
+  "stream_url": "/api/sessions/mock-session/stream"
+}
