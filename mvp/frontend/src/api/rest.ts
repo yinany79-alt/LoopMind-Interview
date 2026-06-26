@@ -90,3 +90,40 @@ export async function fetchReport(sessionId: string): Promise<Report> {
 export function getStreamUrl(sessionId: string): string {
   return `${BASE}/api/sessions/${sessionId}/stream`
 }
+
+// ===== Debug =====
+
+export interface DebugStateResp {
+  breakpoints: string[]
+  paused_at: string | null
+  step_mode: boolean
+  available_nodes: string[]
+}
+
+export async function debugFetchState(sessionId: string): Promise<DebugStateResp> {
+  if (USE_MOCK) return { breakpoints: [], paused_at: null, step_mode: false, available_nodes: [] }
+  return http(`/api/sessions/${sessionId}/debug/state`)
+}
+
+export async function debugToggleBreakpoint(
+  sessionId: string,
+  nodeId: string,
+  action: 'add' | 'remove',
+): Promise<{ ok: boolean; breakpoints: string[] }> {
+  if (USE_MOCK) return { ok: true, breakpoints: [] }
+  return http(`/api/sessions/${sessionId}/debug/breakpoints`, {
+    method: 'POST',
+    json: { node_id: nodeId, action },
+  })
+}
+
+export async function debugResume(
+  sessionId: string,
+  step: boolean,
+): Promise<{ ok: boolean; step?: boolean; reason?: string }> {
+  if (USE_MOCK) return { ok: true }
+  return http(`/api/sessions/${sessionId}/debug/resume`, {
+    method: 'POST',
+    json: { step },
+  })
+}

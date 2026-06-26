@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type {
   CreateSessionResponse,
   EvaluatorResult,
+  GraphNodeId,
+  GraphNodeStateSnapshot,
   Persona,
   PersonaDimensions,
   RedFlag,
@@ -10,6 +12,10 @@ import type {
   SSEAssistantMessageEnd,
   SSEAssistantMessageStart,
   SSEEvaluatorResult,
+  SSEGraphNodeEnter,
+  SSEGraphNodeExit,
+  SSEGraphPaused,
+  SSEGraphResumed,
   SSEInterviewerState,
   SSEMinTopicsReached,
   SSERedFlagAdded,
@@ -105,6 +111,15 @@ export interface InterviewState {
   last_error: SSEError | null
   session_ended: SSESessionEnded | null
 
+  /* —— Debug: 图节点流转 —— */
+  graph_node_status: Partial<Record<GraphNodeId, 'idle' | 'running' | 'done' | 'paused' | 'error'>>
+  graph_node_last_snapshot: Partial<Record<GraphNodeId, GraphNodeStateSnapshot>>
+  graph_node_duration_ms: Partial<Record<GraphNodeId, number>>
+  graph_active_node: GraphNodeId | null
+  graph_paused_at: GraphNodeId | null
+  /** 时间线:所有 SSE 事件按顺序记录,Log Tab 用 */
+  event_log: { ts: number; event: string; data: unknown }[]
+
   /* —— actions —— */
   setSession: (s: CreateSessionResponse) => void
   setPersona: (p: Persona) => void
@@ -133,6 +148,13 @@ export interface InterviewState {
   markMinReached: (e: SSEMinTopicsReached) => void
   endSession: (e: SSESessionEnded) => void
   setError: (e: SSEError) => void
+
+  /* —— Debug actions —— */
+  onGraphNodeEnter: (e: SSEGraphNodeEnter) => void
+  onGraphNodeExit: (e: SSEGraphNodeExit) => void
+  onGraphPaused: (e: SSEGraphPaused) => void
+  onGraphResumed: (e: SSEGraphResumed) => void
+  pushEventLog: (event: string, data: unknown) => void
 }
 
 const DEFAULT_DIMENSIONS: PersonaDimensions = {
@@ -180,6 +202,13 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
   last_error: null,
   session_ended: null,
 
+  graph_node_status: {},
+  graph_node_last_snapshot: {},
+  graph_node_duration_ms: {},
+  graph_active_node: null,
+  graph_paused_at: null,
+  event_log: [],
+
   setSession: (s) =>
     set({
       session_id: s.session_id,
@@ -221,6 +250,12 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
       turns: [],
       last_error: null,
       session_ended: null,
+      graph_node_status: {},
+      graph_node_last_snapshot: {},
+      graph_node_duration_ms: {},
+      graph_active_node: null,
+      graph_paused_at: null,
+      event_log: [],
     }),
 
   setSseStatus: (s) => set({ sse_status: s }),
@@ -233,27 +268,49 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
   setInterviewerState: (e) => set({ interviewer_state: e }),
 
   startMessage: (e) =>
-    set((st) => ({
-      messages: [
-        ...st.messages,
-        {
-          message_id: e.message_id,
-          role: 'interviewer',
+    set((st) => {
+      const existingIdx = st.messages.findIndex(
+        (m) => m.role === 'interviewer' && m.message_id === e.message_id,
+      )
+      if (existingIdx >= 0) {
+        // placeholder 已被 addThinkingStep 创建,补齐元数据,保留已收集的 thinking_steps
+        const next = st.messages.slice()
+        const existing = next[existingIdx] as InterviewerMessage
+        next[existingIdx] = {
+          ...existing,
           mode: e.mode,
           topic_id: e.topic_id,
           topic_name: e.topic_name,
           depth: e.depth,
-          text: '',
-          thinking_steps: [],
-          done: false,
-          created_at: Date.now(),
-        },
-      ],
-      current_topic_id: e.topic_id,
-      current_topic_name: e.topic_name,
-      current_depth: e.depth,
-      awaiting_assistant: true,
-    })),
+        }
+        return {
+          messages: next,
+          current_topic_id: e.topic_id,
+          current_topic_name: e.topic_name,
+          current_depth: e.depth,
+          awaiting_assistant: true,
+        }
+      }
+      const fresh: InterviewerMessage = {
+        message_id: e.message_id,
+        role: 'interviewer',
+        mode: e.mode,
+        topic_id: e.topic_id,
+        topic_name: e.topic_name,
+        depth: e.depth,
+        text: '',
+        thinking_steps: [],
+        done: false,
+        created_at: Date.now(),
+      }
+      return {
+        messages: [...st.messages, fresh],
+        current_topic_id: e.topic_id,
+        current_topic_name: e.topic_name,
+        current_depth: e.depth,
+        awaiting_assistant: true,
+      }
+    }),
 
   appendDelta: (msgId, delta) =>
     set((st) => ({
@@ -275,25 +332,44 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
     })),
 
   addThinkingStep: (e) =>
-    set((st) => ({
-      messages: st.messages.map((m) =>
-        m.role === 'interviewer' && m.message_id === e.message_id
-          ? {
-              ...m,
-              thinking_steps: [
-                ...m.thinking_steps,
-                {
-                  step_index: e.step_index,
-                  step_type: e.step_type,
-                  content: e.content,
-                  tool_name: e.tool_name,
-                  tool_args: e.tool_args,
-                },
-              ],
-            }
-          : m,
-      ),
-    })),
+    set((st) => {
+      const step = {
+        step_index: e.step_index,
+        step_type: e.step_type,
+        content: e.content,
+        tool_name: e.tool_name,
+        tool_args: e.tool_args,
+      }
+      const idx = st.messages.findIndex(
+        (m) => m.role === 'interviewer' && m.message_id === e.message_id,
+      )
+      if (idx >= 0) {
+        const next = st.messages.slice()
+        const existing = next[idx] as InterviewerMessage
+        next[idx] = {
+          ...existing,
+          thinking_steps: [...existing.thinking_steps, step],
+        }
+        return { messages: next }
+      }
+      // placeholder: startMessage 还没到,先建一个空消息把 thinking_step 收住
+      const placeholder: InterviewerMessage = {
+        message_id: e.message_id,
+        role: 'interviewer',
+        mode: 'OPENING',
+        topic_id: st.current_topic_id ?? '',
+        topic_name: st.current_topic_name ?? '',
+        depth: st.current_depth ?? 0,
+        text: '',
+        thinking_steps: [step],
+        done: false,
+        created_at: Date.now(),
+      }
+      return {
+        messages: [...st.messages, placeholder],
+        awaiting_assistant: true,
+      }
+    }),
 
   appendUserMessage: (text) =>
     set((st) => ({
@@ -368,6 +444,59 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
     }),
 
   setError: (e) => set({ last_error: e }),
+
+  onGraphNodeEnter: (e) =>
+    set((st) => ({
+      graph_node_status: { ...st.graph_node_status, [e.node_id]: 'running' },
+      graph_node_last_snapshot: {
+        ...st.graph_node_last_snapshot,
+        [e.node_id]: e.inputs_snapshot,
+      },
+      graph_active_node: e.node_id,
+    })),
+
+  onGraphNodeExit: (e) =>
+    set((st) => ({
+      graph_node_status: {
+        ...st.graph_node_status,
+        [e.node_id]: e.error ? 'error' : 'done',
+      },
+      graph_node_duration_ms: {
+        ...st.graph_node_duration_ms,
+        [e.node_id]: e.duration_ms,
+      },
+      graph_node_last_snapshot: e.outputs_snapshot
+        ? {
+            ...st.graph_node_last_snapshot,
+            [e.node_id]: e.outputs_snapshot,
+          }
+        : st.graph_node_last_snapshot,
+      graph_active_node:
+        st.graph_active_node === e.node_id ? null : st.graph_active_node,
+    })),
+
+  onGraphPaused: (e) =>
+    set((st) => ({
+      graph_node_status: { ...st.graph_node_status, [e.at_node]: 'paused' },
+      graph_paused_at: e.at_node,
+      graph_node_last_snapshot: {
+        ...st.graph_node_last_snapshot,
+        [e.at_node]: e.state_snapshot,
+      },
+    })),
+
+  onGraphResumed: () =>
+    set({ graph_paused_at: null }),
+
+  pushEventLog: (event, data) =>
+    set((st) => {
+      const next = [
+        ...st.event_log,
+        { ts: Date.now(), event, data },
+      ]
+      // 滚动保留最近 500 条,避免内存爆
+      return { event_log: next.length > 500 ? next.slice(-500) : next }
+    }),
 }))
 
 // 便捷选择器

@@ -20,6 +20,7 @@ if _ENV_PATH.exists():
 else:
     load_dotenv(override=True)
 
+from src.api.routes_debug import router as debug_router  # noqa: E402
 from src.api.routes_personas import router as personas_router  # noqa: E402
 from src.api.routes_report import router as report_router  # noqa: E402
 from src.api.routes_sessions import router as sessions_router  # noqa: E402
@@ -91,6 +92,7 @@ app.include_router(personas_router)
 app.include_router(sessions_router)
 app.include_router(stream_router)
 app.include_router(report_router)
+app.include_router(debug_router)
 
 
 @app.get("/healthz")

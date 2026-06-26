@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
 interface Props {
@@ -25,6 +25,30 @@ const SAMPLE_JD = `Agent Harness 产品经理 · DeepSeek (杭州/北京)
 
 export default function JDInputCard({ loading, onSubmit }: Props) {
   const [value, setValue] = useState('')
+  const [loadingStage, setLoadingStage] = useState(0)
+
+  // Loading 文案分阶段轮播:解析 JD → 构建技能树 → 校准面试官
+  const STAGES = [
+    '解析 JD 中…',
+    '提取技能维度…',
+    '构建技能树…',
+    '校准面试官 persona…',
+    '等待面试官就位…',
+  ]
+  useEffect(() => {
+    if (!loading) {
+      setLoadingStage(0)
+      return
+    }
+    const timers: number[] = []
+    STAGES.forEach((_, i) => {
+      if (i === 0) return
+      timers.push(
+        window.setTimeout(() => setLoadingStage(i), i * 4500),
+      )
+    })
+    return () => timers.forEach((t) => window.clearTimeout(t))
+  }, [loading])
 
   const handleSubmit = (): void => {
     const text = value.trim()
@@ -76,7 +100,18 @@ export default function JDInputCard({ loading, onSubmit }: Props) {
           whileTap={{ scale: 0.97 }}
           className="btn-primary"
         >
-          {loading ? '正在解构…' : '开始解构 →'}
+          {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <motion.span
+                className="inline-block h-3 w-3 rounded-full border-2 border-white/30 border-t-white"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              />
+              <span>{STAGES[loadingStage] ?? STAGES[0]}</span>
+            </span>
+          ) : (
+            '开始解构 →'
+          )}
         </motion.button>
       </div>
     </div>

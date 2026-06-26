@@ -18,7 +18,16 @@ router = APIRouter()
 
 
 async def _event_generator(request: Request, session: Session) -> AsyncGenerator[str, None]:
-    """长连接,把 session.event_queue 里的事件吐出来。"""
+    """长连接,把 session.event_queue 里的事件吐出来。
+
+    单消费者保证:同一 session 只能有一个 generator 在消费队列。新连入时把
+    active_stream_id +1,旧 generator 每轮 check,发现自己不是当前 id 就退出,
+    避免 StrictMode 双 mount / 浏览器开多 tab 时事件被多个消费者抢分。
+    """
+    session.active_stream_id += 1
+    my_stream_id = session.active_stream_id
+    logger.info("SSE connect session=%s stream_id=%d", session.session_id, my_stream_id)
+
     # 重连:Last-Event-ID
     last_id = request.headers.get("last-event-id")
     if last_id:
@@ -33,6 +42,13 @@ async def _event_generator(request: Request, session: Session) -> AsyncGenerator
     HEARTBEAT_INTERVAL = 15.0
 
     while True:
+        if session.active_stream_id != my_stream_id:
+            # 有更新的连接进来了,主动让位
+            logger.info(
+                "SSE generator stream_id=%d superseded by %d, exiting",
+                my_stream_id, session.active_stream_id,
+            )
+            break
         if await request.is_disconnected():
             break
         try:
@@ -43,6 +59,11 @@ async def _event_generator(request: Request, session: Session) -> AsyncGenerator
             # 心跳:发一条注释行(不会触发前端事件)
             yield ": keepalive\n\n"
             continue
+        # 拿到事件后再 check 一次:可能在 wait 期间被取代了,这个事件不该消费
+        if session.active_stream_id != my_stream_id:
+            # 把事件塞回队列让新 generator 拿到
+            await session.event_queue.put(event)
+            break
         yield format_sse(event["event"], event["data"], event_id=event.get("id"))
         if event.get("event") == "session_ended":
             # 允许多发几条等队列空了

@@ -54,6 +54,14 @@ export default function InterviewerHeader({ onEndClick }: Props) {
         className="relative grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[var(--bg-tertiary)] text-[40px] leading-none"
       >
         <span aria-label="interviewer-mood">{emoji}</span>
+        {interviewerState.state_id !== 'idle' && (
+          <motion.span
+            aria-hidden
+            className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_0_2px_var(--bg-secondary)]"
+            animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.15, 0.9] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
         <AnimatePresence>
           {redBadge && (
             <motion.span
@@ -92,9 +100,31 @@ export default function InterviewerHeader({ onEndClick }: Props) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.22 }}
-              className="text-sm text-[var(--text-tertiary)]"
+              className={clsx(
+                'flex items-center gap-1',
+                interviewerState.state_id === 'idle'
+                  ? 'text-sm text-[var(--text-tertiary)]'
+                  : 'text-sm font-medium text-emerald-600',
+              )}
             >
-              {interviewerState.state_text}
+              <span>{interviewerState.state_text}</span>
+              {interviewerState.state_id !== 'idle' && (
+                <span className="inline-flex gap-0.5" aria-hidden>
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      className="h-1 w-1 rounded-full bg-emerald-500"
+                      animate={{ opacity: [0.2, 1, 0.2] }}
+                      transition={{
+                        duration: 1.1,
+                        repeat: Infinity,
+                        delay: i * 0.18,
+                        ease: 'easeInOut',
+                      }}
+                    />
+                  ))}
+                </span>
+              )}
             </motion.span>
           </AnimatePresence>
         </div>

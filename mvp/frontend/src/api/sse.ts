@@ -42,6 +42,10 @@ function openRealSSE(sessionId: string, handlers: SSEHandlers): SSEHandle {
     'min_topics_reached',
     'error',
     'session_ended',
+    'graph_node_enter',
+    'graph_node_exit',
+    'graph_paused',
+    'graph_resumed',
   ]
 
   for (const name of allNames) {

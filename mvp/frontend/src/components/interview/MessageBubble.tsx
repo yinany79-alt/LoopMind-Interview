@@ -26,6 +26,9 @@ export default function MessageBubble({ msg, debug }: Props) {
     )
   }
 
+  const isPending = !msg.done && msg.text.length === 0
+  const isAwaitingThinking = isPending && msg.thinking_steps.length === 0
+
   return (
     <div className="mb-5">
       <div className="mb-1 flex items-baseline gap-2">
@@ -49,9 +52,22 @@ export default function MessageBubble({ msg, debug }: Props) {
           </span>
         )}
       </div>
-      <div className="max-w-[88%] rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3 text-[15px] leading-relaxed shadow-sm">
-        <TypewriterText text={msg.text} done={msg.done} />
-        <ThinkingFoldout steps={msg.thinking_steps} defaultOpen={debug} />
+      <div
+        className={clsx(
+          'max-w-[88%] rounded-2xl border px-4 py-3 text-[15px] leading-relaxed shadow-sm',
+          isPending
+            ? 'border-emerald-200 bg-emerald-50/30 dark:bg-emerald-950/10'
+            : 'border-[var(--border)] bg-[var(--bg-secondary)]',
+        )}
+      >
+        {!isAwaitingThinking && msg.text.length > 0 && (
+          <TypewriterText text={msg.text} done={msg.done} />
+        )}
+        <ThinkingFoldout
+          steps={msg.thinking_steps}
+          defaultOpen={debug}
+          pending={isPending}
+        />
       </div>
     </div>
   )

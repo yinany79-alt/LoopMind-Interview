@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { useDebugMode } from '@/hooks/useDebugMode'
 import clsx from 'clsx'
 
@@ -50,19 +51,37 @@ export default function TopNav() {
           >
             设置
           </button>
-          <button
+          <motion.button
             type="button"
             onClick={toggle}
+            whileTap={{ scale: 0.96 }}
             className={clsx(
-              'ml-2 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
+              'ml-2 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold transition-all',
               debug
-                ? 'border-[var(--bad)] bg-[var(--bad)]/10 text-[var(--bad)]'
-                : 'border-[var(--border)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)]',
+                ? 'border-[var(--bad)] bg-[var(--bad)] text-white shadow-sm hover:bg-[var(--bad)]/90'
+                : 'border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]',
             )}
-            title="Cmd/Ctrl+Shift+D"
+            title="Cmd/Ctrl+Shift+D 也能切换"
+            aria-pressed={debug}
           >
-            {debug ? 'DEBUG ON' : 'Debug'}
-          </button>
+            {debug ? (
+              <>
+                <motion.span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-white"
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <span>调试中</span>
+                <span className="text-white/70">·</span>
+                <span>关闭</span>
+              </>
+            ) : (
+              <>
+                <span aria-hidden>🔬</span>
+                <span>调试面板</span>
+              </>
+            )}
+          </motion.button>
         </nav>
       </div>
     </header>

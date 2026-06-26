@@ -9,7 +9,7 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from src.graph.state import InterviewState, make_initial_state
 
@@ -28,6 +28,14 @@ class Session:
     report: Optional[Dict[str, Any]] = None  # 异步生成的报告
     report_status: str = "pending"  # pending | generating | ready | failed
     graph_started: bool = False  # SSE 连上后才启动主图
+    # ===== Debug: 断点 / step / 节点流转追踪 =====
+    breakpoints: Set[str] = field(default_factory=set)  # 节点名集合
+    resume_event: asyncio.Event = field(default_factory=asyncio.Event)
+    step_mode: bool = False  # True: 每个节点都暂停(单步执行)
+    paused_at: Optional[str] = None  # 当前停在哪个节点(None 表示未暂停)
+    # ===== SSE 单消费者:同一 session 只允许一个 stream generator 消费队列 =====
+    # 新连进来时把这个号 +1,所有旧 generator 看到 active_stream_id != 自己,立刻退出
+    active_stream_id: int = 0
 
     async def push_event(self, event: Dict[str, Any]) -> None:
         """统一事件入口:加 id、入队、入历史。"""
@@ -51,6 +59,10 @@ class Session:
             if e.get("id") == last_event_id:
                 found = True
         return out
+
+    def should_pause_at(self, node_id: str) -> bool:
+        """是否应该在该节点暂停:命中 breakpoint 或处于 step 模式。"""
+        return node_id in self.breakpoints or self.step_mode
 
 
 class SessionStore:

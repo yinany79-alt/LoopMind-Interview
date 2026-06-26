@@ -6,19 +6,32 @@ import ConversationTab from './ConversationTab'
 import ReactTab from './ReactTab'
 import EvaluatorTab from './EvaluatorTab'
 import StateTab from './StateTab'
+import GraphTab from './GraphTab'
+import MemoryTab from './MemoryTab'
+import LogTab from './LogTab'
 
-type Tab = 'conversation' | 'react' | 'evaluator' | 'state'
+type Tab =
+  | 'graph'
+  | 'memory'
+  | 'log'
+  | 'conversation'
+  | 'react'
+  | 'evaluator'
+  | 'state'
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'conversation', label: '对话流' },
+  { key: 'graph', label: 'Graph' },
+  { key: 'memory', label: 'Memory' },
+  { key: 'log', label: 'Log' },
   { key: 'react', label: 'ReAct' },
   { key: 'evaluator', label: 'Evaluator' },
   { key: 'state', label: 'State' },
+  { key: 'conversation', label: '对话' },
 ]
 
 export default function DebugDrawer() {
   const { enabled, toggle } = useDebugMode()
-  const [tab, setTab] = useState<Tab>('state')
+  const [tab, setTab] = useState<Tab>('graph')
 
   return (
     <AnimatePresence>
@@ -28,7 +41,7 @@ export default function DebugDrawer() {
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 22, stiffness: 220 }}
-          className="fixed right-0 top-0 z-40 flex h-full w-[420px] flex-col border-l border-[var(--border)] bg-[var(--bg-secondary)] shadow-2xl"
+          className="fixed right-0 top-0 z-40 flex h-full w-[460px] flex-col border-l border-[var(--border)] bg-[var(--bg-secondary)] shadow-2xl"
         >
           <header className="flex items-center justify-between border-b border-[var(--divider)] px-4 py-3">
             <div className="flex items-center gap-2">
@@ -47,14 +60,14 @@ export default function DebugDrawer() {
             </button>
           </header>
 
-          <nav className="flex border-b border-[var(--divider)]">
+          <nav className="flex overflow-x-auto border-b border-[var(--divider)]">
             {TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={clsx(
-                  'flex-1 px-3 py-2 text-xs font-medium transition-colors',
+                  'shrink-0 px-3 py-2 text-xs font-medium transition-colors',
                   tab === t.key
                     ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
                     : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
@@ -65,11 +78,30 @@ export default function DebugDrawer() {
             ))}
           </nav>
 
-          <div className="flex-1 overflow-y-auto p-3">
-            {tab === 'conversation' && <ConversationTab />}
-            {tab === 'react' && <ReactTab />}
-            {tab === 'evaluator' && <EvaluatorTab />}
-            {tab === 'state' && <StateTab />}
+          <div className="flex-1 overflow-hidden">
+            {tab === 'graph' && <GraphTab />}
+            {tab === 'memory' && <MemoryTab />}
+            {tab === 'log' && <LogTab />}
+            {tab === 'conversation' && (
+              <div className="h-full overflow-y-auto p-3">
+                <ConversationTab />
+              </div>
+            )}
+            {tab === 'react' && (
+              <div className="h-full overflow-y-auto p-3">
+                <ReactTab />
+              </div>
+            )}
+            {tab === 'evaluator' && (
+              <div className="h-full overflow-y-auto p-3">
+                <EvaluatorTab />
+              </div>
+            )}
+            {tab === 'state' && (
+              <div className="h-full overflow-y-auto p-3">
+                <StateTab />
+              </div>
+            )}
           </div>
 
           <footer className="border-t border-[var(--divider)] px-3 py-2 text-[10px] text-[var(--text-tertiary)]">

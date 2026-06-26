@@ -5,6 +5,7 @@ import HomePage from '@/pages/HomePage'
 import PreparePage from '@/pages/PreparePage'
 import InterviewPage from '@/pages/InterviewPage'
 import ReportPage from '@/pages/ReportPage'
+import DebugDrawer from '@/components/debug/DebugDrawer'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </PageContainer>
+      <DebugDrawer />
     </div>
   )
 }

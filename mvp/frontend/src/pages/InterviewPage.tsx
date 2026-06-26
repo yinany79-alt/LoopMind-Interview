@@ -10,7 +10,6 @@ import InputBox from '@/components/interview/InputBox'
 import EndDialog from '@/components/interview/EndDialog'
 import ConfettiEffect from '@/components/interview/ConfettiEffect'
 import MinReachedToast from '@/components/interview/MinReachedToast'
-import DebugDrawer from '@/components/debug/DebugDrawer'
 
 export default function InterviewPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
@@ -133,7 +132,6 @@ export default function InterviewPage() {
         onContinue={() => setEndDialogOpen(false)}
         onConfirmEnd={() => void confirmEnd()}
       />
-      <DebugDrawer />
 
       {minReached && topicsCovered >= 5 && !sessionEnded && (
         <div className="sr-only">达到结束门槛</div>

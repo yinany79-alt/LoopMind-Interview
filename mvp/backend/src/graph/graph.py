@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from contextvars import ContextVar
-from typing import Any, Dict, Literal
+from typing import Any, Awaitable, Callable, Dict, Literal
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
@@ -43,6 +44,90 @@ TYPEWRITER_INTERVAL = 0.03
 
 # 事件 sink 用 ContextVar 透传,避免 LangGraph checkpointer 尝试序列化 asyncio.Queue
 _EVENT_SINK: ContextVar[asyncio.Queue | None] = ContextVar("_EVENT_SINK", default=None)
+# 当前 session 引用,wrap_node 用它访问 breakpoints / resume_event
+_CURRENT_SESSION: ContextVar[Session | None] = ContextVar("_CURRENT_SESSION", default=None)
+
+
+# ===== 状态快照(只截关键字段,避免 dump 巨大 state) =====
+
+_SNAPSHOT_KEYS = (
+    "turn_count",
+    "current_topic_id",
+    "current_topic_name",
+    "current_depth",
+    "current_satisfaction",
+    "next_action",
+    "_interviewer_mode",
+    "_all_done",
+    "_user_answer",
+    "_pending_topic_node",
+)
+
+
+def _snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
+    snap: Dict[str, Any] = {}
+    for k in _SNAPSHOT_KEYS:
+        v = state.get(k)
+        if isinstance(v, str) and len(v) > 200:
+            v = v[:200] + "…"
+        snap[k] = v
+    last_eval = state.get("last_eval")
+    if isinstance(last_eval, dict):
+        snap["last_eval"] = {
+            "satisfaction_change": last_eval.get("satisfaction_change"),
+            "found_gaps": last_eval.get("found_gaps", [])[:3],
+            "drill_down_target": last_eval.get("drill_down_target"),
+        }
+    snap["topics_covered_count"] = len(state.get("topics_covered", []))
+    return snap
+
+
+def wrap_node(node_id: str, fn: Callable[[InterviewState], Awaitable[Dict[str, Any]]]):
+    """给 node 函数加一层 wrapper:enter/exit 事件 + breakpoint 阻塞。"""
+
+    async def wrapped(state: InterviewState) -> Dict[str, Any]:
+        sess = _CURRENT_SESSION.get()
+        t0 = time.time()
+        await _emit("graph_node_enter", {
+            "node_id": node_id,
+            "ts": t0,
+            "inputs_snapshot": _snapshot(dict(state)),
+        })
+        # 命中断点 / step 模式 → 阻塞
+        if sess is not None and sess.should_pause_at(node_id):
+            sess.paused_at = node_id
+            sess.resume_event.clear()
+            await _emit("graph_paused", {
+                "at_node": node_id,
+                "reason": "step" if sess.step_mode else "breakpoint",
+                "state_snapshot": _snapshot(dict(state)),
+            })
+            await sess.resume_event.wait()
+            sess.paused_at = None
+            sess.step_mode = False  # step 是一次性的,触发后自动清
+            await _emit("graph_resumed", {"from_node": node_id})
+
+        try:
+            out = await fn(state)
+        except Exception as e:
+            await _emit("graph_node_exit", {
+                "node_id": node_id,
+                "ts": time.time(),
+                "duration_ms": int((time.time() - t0) * 1000),
+                "error": str(e),
+            })
+            raise
+        merged = dict(state)
+        merged.update(out or {})
+        await _emit("graph_node_exit", {
+            "node_id": node_id,
+            "ts": time.time(),
+            "duration_ms": int((time.time() - t0) * 1000),
+            "outputs_snapshot": _snapshot(merged),
+        })
+        return out
+
+    return wrapped
 
 
 # ===== 事件辅助 =====
@@ -341,11 +426,11 @@ def _route_after_next_topic(state: InterviewState) -> Literal["interview", "end"
 def build_graph():
     g = StateGraph(InterviewState)
 
-    g.add_node("dispatch", dispatch_node)
-    g.add_node("interviewer", interviewer_node)
-    g.add_node("evaluator", evaluator_node)
-    g.add_node("router", router_node)
-    g.add_node("next_topic", next_topic_node)
+    g.add_node("dispatch", wrap_node("dispatch", dispatch_node))
+    g.add_node("interviewer", wrap_node("interviewer", interviewer_node))
+    g.add_node("evaluator", wrap_node("evaluator", evaluator_node))
+    g.add_node("router", wrap_node("router", router_node))
+    g.add_node("next_topic", wrap_node("next_topic", next_topic_node))
 
     g.add_edge(START, "dispatch")
     g.add_conditional_edges(
@@ -410,11 +495,13 @@ async def _run_graph(session: Session, inputs: Dict[str, Any]) -> None:
     pump = asyncio.create_task(_pump_sink(session, sink, stop))
 
     token = _EVENT_SINK.set(sink)
+    sess_token = _CURRENT_SESSION.set(session)
     try:
         result = await graph.ainvoke(inputs, config=cfg)
         for k, v in result.items():
             session.state[k] = v
     finally:
+        _CURRENT_SESSION.reset(sess_token)
         _EVENT_SINK.reset(token)
         stop.set()
         await pump

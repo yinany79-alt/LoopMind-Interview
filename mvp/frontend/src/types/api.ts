@@ -259,6 +259,52 @@ export interface SSESessionEnded {
   below_minimum: boolean
 }
 
+// ===== Debug: 图节点流转 / 断点 =====
+
+export type GraphNodeId =
+  | 'dispatch'
+  | 'interviewer'
+  | 'evaluator'
+  | 'router'
+  | 'next_topic'
+
+export interface GraphNodeStateSnapshot {
+  turn_count?: number
+  current_topic_id?: string | null
+  current_topic_name?: string | null
+  current_depth?: number
+  current_satisfaction?: number
+  next_action?: string
+  _interviewer_mode?: string
+  _all_done?: boolean
+  topics_covered_count?: number
+  [k: string]: unknown
+}
+
+export interface SSEGraphNodeEnter {
+  node_id: GraphNodeId
+  ts: number
+  inputs_snapshot: GraphNodeStateSnapshot
+}
+
+export interface SSEGraphNodeExit {
+  node_id: GraphNodeId
+  ts: number
+  duration_ms: number
+  outputs_snapshot?: GraphNodeStateSnapshot
+  error?: string
+}
+
+export interface SSEGraphPaused {
+  at_node: GraphNodeId
+  reason: 'breakpoint' | 'step'
+  state_snapshot: GraphNodeStateSnapshot
+}
+
+export interface SSEGraphResumed {
+  from_node: GraphNodeId
+}
+
 // 事件名 -> payload 类型映射,便于 store / SSE 路由强类型化。
 export type SSEEventMap = {
   session_started: SSESessionStarted
@@ -277,6 +323,10 @@ export type SSEEventMap = {
   min_topics_reached: SSEMinTopicsReached
   error: SSEError
   session_ended: SSESessionEnded
+  graph_node_enter: SSEGraphNodeEnter
+  graph_node_exit: SSEGraphNodeExit
+  graph_paused: SSEGraphPaused
+  graph_resumed: SSEGraphResumed
 }
 
 export type SSEEventName = keyof SSEEventMap
