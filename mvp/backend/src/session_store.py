@@ -1,10 +1,13 @@
-"""Session Store — 内存中管理所有 session,每个 session 有一个事件队列。
+"""Session Store — 内存中管理 session 实时态 + SQLite 持久化已结束 session 的快照。
 
-不上 DB(MVP)。事件队列用 asyncio.Queue 实现 SSE 长连接的事件推送。
+实时数据(state / event_queue / 断点)在内存,SSE 长连接靠 event_queue 推。
+结束后通过 finalize_session() 把 state / report / 时长写入 SQLite,
+供 Battle Record / Challenger Stats / Continue Card 查询。
 """
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 import uuid
@@ -12,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
 from src.graph.state import InterviewState, make_initial_state
+from src.persistence import db
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +26,8 @@ class Session:
     state: InterviewState
     created_at: float = field(default_factory=time.time)
     status: str = "created"  # created | ready | running | ended
+    mode: str = "jd_paste"   # jd_paste | curated | coffee_chat
+    curated_job_id: Optional[str] = None
     event_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
     history_events: List[Dict[str, Any]] = field(default_factory=list)  # 用于 Last-Event-ID 续推
     seq: int = 0
@@ -70,11 +76,34 @@ class SessionStore:
         self._sessions: Dict[str, Session] = {}
         self._lock = asyncio.Lock()
 
-    async def create(self, jd_text: str) -> Session:
+    async def create(
+        self,
+        jd_text: str,
+        *,
+        mode: str = "jd_paste",
+        curated_job_id: Optional[str] = None,
+        jd_title: Optional[str] = None,
+    ) -> Session:
         sid = str(uuid.uuid4())
-        sess = Session(session_id=sid, state=make_initial_state(sid, jd_text))
+        sess = Session(
+            session_id=sid,
+            state=make_initial_state(sid, jd_text),
+            mode=mode,
+            curated_job_id=curated_job_id,
+        )
         async with self._lock:
             self._sessions[sid] = sess
+        # 立刻写一行到 DB(persona 未定,稍后 start 时 update)
+        try:
+            db.insert_session(
+                session_id=sid,
+                mode=mode,
+                persona_id=None,
+                curated_job_id=curated_job_id,
+                jd_title=jd_title,
+            )
+        except Exception as e:
+            logger.exception("DB insert_session failed: %s", e)
         return sess
 
     def get(self, sid: str) -> Optional[Session]:
@@ -91,6 +120,29 @@ class SessionStore:
 
     def all(self) -> Dict[str, Session]:
         return dict(self._sessions)
+
+    def mark_persona(self, sid: str, persona_id: str) -> None:
+        """start 接口确认人格后,回写 DB。"""
+        try:
+            db.update_session_persona(sid, persona_id)
+        except Exception as e:
+            logger.exception("DB update_session_persona failed: %s", e)
+
+    def finalize(self, sess: Session, status: str = "ended") -> None:
+        """session_ended 后调用:把 state / report 落盘。"""
+        try:
+            topics = sess.state.get("topics_covered", []) or []
+            sat = sess.state.get("current_satisfaction")
+            db.finalize_session(
+                session_id=sess.session_id,
+                status=status,
+                state_json=json.dumps(sess.state, ensure_ascii=False, default=str),
+                report_json=json.dumps(sess.report, ensure_ascii=False) if sess.report else None,
+                topics_count=len(topics),
+                satisfaction_final=int(sat) if isinstance(sat, (int, float)) else None,
+            )
+        except Exception as e:
+            logger.exception("DB finalize_session failed: %s", e)
 
 
 # 全局单例

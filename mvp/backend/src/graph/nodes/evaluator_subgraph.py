@@ -137,6 +137,32 @@ async def run_evaluator(
     if message_id is None:
         message_id = f"e_{uuid.uuid4().hex[:8]}"
 
+    # Coffee Chat 旁路:返回中性评估,不打分、不生成 red_flag、不强制 switch
+    if state.get("_coffee_chat"):
+        neutral = {
+            "answer_quality": "concept",
+            "dimension_deltas": {},
+            "current_satisfaction": previous_satisfaction,  # 不动
+            "found_gaps": [],
+            "found_strengths": [],
+            "drill_down_target": None,
+            "drill_down_hint": None,
+            "red_flags_to_add": [],
+            "bright_spots_to_add": [],
+            "topic_finish_signal": None,
+        }
+        yield {"event": "evaluator_started", "data": {"turn_id": turn_id}}
+        yield {
+            "event": "evaluator_result",
+            "data": {
+                "turn_id": turn_id,
+                "evaluation": neutral,
+                "thinking_steps": [],
+            },
+        }
+        yield {"event": "_done", "data": {"evaluation": neutral, "thinking_steps": []}}
+        return
+
     yield {
         "event": "interviewer_state",
         "data": {"state_id": "note_taking", "state_text": "面试官正在记录笔记...", "ttl_ms": 4000},

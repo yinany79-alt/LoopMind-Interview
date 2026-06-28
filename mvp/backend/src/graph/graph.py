@@ -572,6 +572,11 @@ async def _natural_end(session: Session) -> None:
         })
         session.status = "ended"
 
+    # natural_end 也要启动 report 生成 + 落盘
+    if session.report_status in ("pending", "failed"):
+        session.report_status = "generating"
+        asyncio.create_task(_run_report(session))
+
 
 def _topic_archived(state: Dict[str, Any]) -> bool:
     tid = state.get("current_topic_id")
@@ -624,3 +629,10 @@ async def _run_report(session: Session) -> None:
             "error": str(e),
         }
         session.report_status = "failed"
+    finally:
+        # 持久化:state / report / 时长 落盘,供 Battle Record / Challenger Stats 查询
+        try:
+            from src.session_store import get_store
+            get_store().finalize(session, status="ended")
+        except Exception as e:
+            logger.exception("Session finalize 落盘失败: %s", e)

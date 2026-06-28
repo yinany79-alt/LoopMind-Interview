@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # 必须在导入 llm.py 之前 load .env,override=True 让 .env 覆盖 shell 已有环境变量
@@ -21,11 +22,15 @@ else:
     load_dotenv(override=True)
 
 from src.api.routes_debug import router as debug_router  # noqa: E402
+from src.api.routes_history import router as history_router  # noqa: E402
+from src.api.routes_jobs import router as jobs_router  # noqa: E402
 from src.api.routes_personas import router as personas_router  # noqa: E402
 from src.api.routes_report import router as report_router  # noqa: E402
 from src.api.routes_sessions import router as sessions_router  # noqa: E402
 from src.api.routes_stream import router as stream_router  # noqa: E402
+from src.data.curated_jobs import warm_cache  # noqa: E402
 from src.llm import llm_label  # noqa: E402
+from src.persistence import db  # noqa: E402
 
 
 logging.basicConfig(
@@ -37,8 +42,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("启动赛博面试官后端 v0.1")
+    logger.info("启动赛博面试官后端 v0.2")
     logger.info("LLM 配置: %s", llm_label())
+    # SQLite 初始化
+    db.init_db()
+    # 后台预解析 curated jobs(不阻塞启动)
+    import asyncio
+    asyncio.create_task(warm_cache())
     yield
     logger.info("关闭后端")
 
@@ -93,6 +103,15 @@ app.include_router(sessions_router)
 app.include_router(stream_router)
 app.include_router(report_router)
 app.include_router(debug_router)
+app.include_router(jobs_router)
+app.include_router(history_router)
+
+
+# 静态资源:人物照片等。目录不存在时自动创建,避免 mount 失败
+_STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+_STATIC_DIR.mkdir(exist_ok=True)
+(_STATIC_DIR / "personas").mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 @app.get("/healthz")

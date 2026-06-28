@@ -57,11 +57,17 @@ def _format_prompt(state: Dict[str, Any], mode: str, **extra) -> str:
         "current_depth": state.get("current_depth", 0),
     }
     common.update(extra)
-    template_name = {
-        "OPENING": "interviewer_opening_react",
-        "DRILL_DOWN": "interviewer_drilldown_react",
-        "SWITCH_TOPIC": "interviewer_switch_react",
-    }.get(mode, "interviewer_opening_react")
+    # Coffee Chat 模式:OPENING 时用 freechat 模板,后续轮(DRILL_DOWN)用 OPENING 模板
+    # (跑得很短;反正 router 永远走 drill_down,但 prompt 还是要友好)
+    is_coffee = bool(state.get("_coffee_chat"))
+    if is_coffee and mode == "OPENING":
+        template_name = "interviewer_opening_freechat"
+    else:
+        template_name = {
+            "OPENING": "interviewer_opening_react",
+            "DRILL_DOWN": "interviewer_drilldown_react",
+            "SWITCH_TOPIC": "interviewer_switch_react",
+        }.get(mode, "interviewer_opening_react")
     tpl = load_prompt(template_name)
     # safe format(允许缺字段)
     class _SafeDict(dict):
