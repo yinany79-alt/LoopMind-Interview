@@ -1,12 +1,22 @@
+/**
+ * ReportPage — Cyber Interview V2 Growth Report 4 列版。
+ *
+ * 设计图 image.png Page 6:
+ * - 顶部 < 返回 + 分享 + 下载
+ * - 4 列:综合评分 | 各项能力评估 | 本次表现亮点 | 改进建议
+ * - 底部:Topic 重放(沿用旧组件)
+ */
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Download, Share2 } from 'lucide-react'
 import { fetchReport } from '@/api/rest'
 import type { Report } from '@/types/api'
-import ScoreHeader from '@/components/report/ScoreHeader'
-import DimensionRadar from '@/components/report/DimensionRadar'
-import CommentList from '@/components/report/CommentList'
-import TopicReplay from '@/components/report/TopicReplay'
 import { useInterviewStore } from '@/store/interviewStore'
+import ScoreColumn from '@/components/report/ScoreColumn'
+import DimensionEvalColumn from '@/components/report/DimensionEvalColumn'
+import HighlightsColumn from '@/components/report/HighlightsColumn'
+import SuggestionsColumn from '@/components/report/SuggestionsColumn'
+import TopicReplay from '@/components/report/TopicReplay'
 
 const POLL_INTERVAL_MS = 2000
 const POLL_MAX_MS = 30000
@@ -53,8 +63,7 @@ export default function ReportPage() {
   if (error) {
     return (
       <div className="card mx-auto max-w-2xl p-8 text-center">
-        <div className="text-2xl">⚠️</div>
-        <h2 className="mt-2 font-serif text-lg">{error}</h2>
+        <h2 className="text-lg font-semibold">{error}</h2>
         <button
           type="button"
           onClick={() => navigate('/')}
@@ -68,44 +77,82 @@ export default function ReportPage() {
 
   if (!report || report.status === 'generating') {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
-        <SkeletonBlock height={170} />
-        <SkeletonBlock height={320} />
-        <SkeletonBlock height={140} />
-        <SkeletonBlock height={240} />
-        <p className="text-center text-xs text-[var(--text-tertiary)]">
-          报告生成中,大约 5 秒…
+      <div className="space-y-4">
+        <SkeletonBlock height={70} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <SkeletonBlock height={260} />
+          <SkeletonBlock height={260} />
+          <SkeletonBlock height={260} />
+          <SkeletonBlock height={260} />
+        </div>
+        <p className="pt-2 text-center text-xs text-[var(--text-tertiary)]">
+          报告生成中,约 5 秒…
         </p>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      {report.verdict && (
-        <ScoreHeader
-          verdict={report.verdict}
-          below_minimum={report.below_minimum ?? false}
-        />
-      )}
-      {report.dimension_scores && (
-        <DimensionRadar scores={report.dimension_scores} />
-      )}
-      {report.comments && <CommentList comments={report.comments} />}
-      {report.topic_replays && <TopicReplay replays={report.topic_replays} />}
-
-      <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
-        <div className="text-xs text-[var(--text-tertiary)]">
-          报告生成时间:{report.generated_at}
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-5">
+      {/* 顶部 bar */}
+      <header className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => {
+            resetInterview()
+            navigate('/')
+          }}
+          className="btn-ghost"
+        >
+          <ArrowLeft size={14} /> 返回
+        </button>
+        <div className="flex gap-2">
           <button
             type="button"
-            className="btn-secondary"
-            onClick={() => alert('分享功能下一版本开放')}
+            onClick={() => alert('分享功能即将上线')}
+            className="btn-ghost"
           >
-            分享报告
+            <Share2 size={14} /> 分享报告
           </button>
+          <button
+            type="button"
+            onClick={() => alert('下载功能即将上线')}
+            className="btn-ghost"
+          >
+            <Download size={14} /> 下载报告
+          </button>
+        </div>
+      </header>
+
+      {/* 主标题 */}
+      <div>
+        <h1 className="font-display text-[36px] font-semibold tracking-tightest text-[var(--text-primary)]">
+          Growth Report · 成长报告
+        </h1>
+        <p className="mt-1 text-[13px] text-[var(--text-tertiary)]">
+          生成于 {report.generated_at}
+        </p>
+      </div>
+
+      {/* 4 列 */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ScoreColumn report={report} />
+        <DimensionEvalColumn report={report} />
+        <HighlightsColumn report={report} />
+        <SuggestionsColumn report={report} />
+      </div>
+
+      {/* Topic 重放(可选) */}
+      {report.topic_replays && report.topic_replays.length > 0 && (
+        <TopicReplay replays={report.topic_replays} />
+      )}
+
+      {/* 底部按钮区 */}
+      <div className="card mt-2 flex flex-wrap items-center justify-between gap-3 p-5">
+        <p className="text-[12px] text-[var(--text-tertiary)]">
+          想要更多挑战?选位新面试官再来一次。
+        </p>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             className="btn-secondary"
@@ -114,7 +161,7 @@ export default function ReportPage() {
               navigate('/')
             }}
           >
-            重新面试
+            重新挑战
           </button>
           <button
             type="button"
@@ -132,7 +179,7 @@ export default function ReportPage() {
 function SkeletonBlock({ height }: { height: number }) {
   return (
     <div
-      className="card animate-pulse bg-[var(--bg-tertiary)]/70"
+      className="card animate-pulse bg-[var(--bg-tertiary)]/60"
       style={{ height }}
     />
   )

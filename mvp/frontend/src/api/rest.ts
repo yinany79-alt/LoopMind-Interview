@@ -1,10 +1,15 @@
 import type {
   AnswerRequest,
   AnswerResponse,
+  ChallengerStats,
   CreateSessionRequest,
   CreateSessionResponse,
+  CuratedJob,
+  CuratedJobDetail,
   EndRequest,
   EndResponse,
+  JourneyHistoryItem,
+  JourneyStats,
   PersonasResponse,
   Report,
   SessionStartRequest,
@@ -42,6 +47,8 @@ async function http<T>(
   }
   return (await res.json()) as T
 }
+
+// ===== Session 三模式 =====
 
 export async function createSession(
   body: CreateSessionRequest,
@@ -91,6 +98,60 @@ export function getStreamUrl(sessionId: string): string {
   return `${BASE}/api/sessions/${sessionId}/stream`
 }
 
+// ===== Curated Jobs / Trending Missions =====
+
+export async function fetchCuratedJobs(): Promise<{ jobs: CuratedJob[] }> {
+  if (USE_MOCK) return { jobs: [] }
+  return http('/api/curated-jobs')
+}
+
+export async function fetchCuratedJobDetail(
+  jobId: string,
+): Promise<CuratedJobDetail> {
+  if (USE_MOCK) throw new Error('not implemented in mock')
+  return http(`/api/curated-jobs/${jobId}`)
+}
+
+// ===== Challenger 推荐 + 详情统计 =====
+
+export async function fetchRecommendedChallengers(
+  count = 4,
+): Promise<PersonasResponse> {
+  if (USE_MOCK) return mock.fetchPersonas()
+  return http(`/api/challengers/recommended?count=${count}`)
+}
+
+export async function fetchChallengerStats(
+  personaId: string,
+): Promise<ChallengerStats> {
+  if (USE_MOCK) {
+    return {
+      persona_id: personaId,
+      challenged_count: 0,
+      avg_duration_min: 14,
+      pass_rate: 50,
+      rating: 4.8,
+    }
+  }
+  return http(`/api/challengers/${personaId}/stats`)
+}
+
+// ===== Journey / Battle Record =====
+
+export async function fetchJourneyStats(): Promise<JourneyStats> {
+  if (USE_MOCK) {
+    return { level: 1, total: 0, passed: 0, avg_score: 0, defeated: [] }
+  }
+  return http('/api/history/stats')
+}
+
+export async function fetchJourneyHistory(
+  limit = 20,
+): Promise<{ items: JourneyHistoryItem[] }> {
+  if (USE_MOCK) return { items: [] }
+  return http(`/api/history/list?limit=${limit}`)
+}
+
 // ===== Debug =====
 
 export interface DebugStateResp {
@@ -101,7 +162,8 @@ export interface DebugStateResp {
 }
 
 export async function debugFetchState(sessionId: string): Promise<DebugStateResp> {
-  if (USE_MOCK) return { breakpoints: [], paused_at: null, step_mode: false, available_nodes: [] }
+  if (USE_MOCK)
+    return { breakpoints: [], paused_at: null, step_mode: false, available_nodes: [] }
   return http(`/api/sessions/${sessionId}/debug/state`)
 }
 

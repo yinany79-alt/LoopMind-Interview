@@ -1,70 +1,58 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { createSession } from '@/api/rest'
+/**
+ * HomePage — Cyber Interview V2 首页。
+ *
+ * 按 image.png 设计图 1:1 布局:
+ * - Hero(左字右 Orb)
+ * - 双卡:继续上次的挑战 + 我的战绩
+ * - 推荐面试官(4 张)
+ * - 大佬挑战(5 张 legend)
+ * - 选择挑战任务(3 张 Mission)
+ * - 热门挑战(4 张 trending)
+ * - 双卡:如何开始 + 最高成就
+ */
+import { useEffect } from 'react'
 import { useInterviewStore } from '@/store/interviewStore'
-import JDInputCard from '@/components/home/JDInputCard'
-import HotJobsCard from '@/components/home/HotJobsCard'
-import PersonaGalleryCard from '@/components/home/PersonaGalleryCard'
-import HowItWorks from '@/components/home/HowItWorks'
+import Hero from '@/components/home/Hero'
+import ContinueCard from '@/components/home/ContinueCard'
+import BattleStatsCard from '@/components/home/BattleStatsCard'
+import RecommendedChallengers from '@/components/home/RecommendedChallengers'
+import LegendGrid from '@/components/home/LegendGrid'
+import MissionCards from '@/components/home/MissionCards'
+import TrendingMissions from '@/components/home/TrendingMissions'
+import StepsCard from '@/components/home/StepsCard'
+import AchievementCard from '@/components/home/AchievementCard'
 
 export default function HomePage() {
-  const navigate = useNavigate()
-  const setSession = useInterviewStore((s) => s.setSession)
   const resetInterview = useInterviewStore((s) => s.resetInterview)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (jdText: string): Promise<void> => {
-    setError(null)
-    setLoading(true)
-    try {
-      resetInterview()
-      const resp = await createSession({ jd_text: jdText })
-      setSession(resp)
-      navigate(`/prepare?sessionId=${encodeURIComponent(resp.session_id)}`)
-    } catch (e) {
-      const msg =
-        typeof e === 'object' && e !== null && 'error' in e
-          ? (e as { error: { message?: string } }).error?.message
-          : null
-      setError(msg ?? '解析 JD 失败,请稍后重试')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // 进入首页清掉上一次的面试态(避免污染下次创建)
+  useEffect(() => {
+    resetInterview()
+  }, [resetInterview])
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="pt-2">
-        <h1 className="font-serif text-3xl font-semibold leading-tight tracking-tight">
-          赛博面试官
-          <span className="ml-2 text-base font-normal text-[var(--text-tertiary)]">
-            对着 JD 来一场会追问到底的面试
-          </span>
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">
-          不是问问题,是把你的简历背诵打回原形。AI 会按这份 JD 的技能点逐项验真,
-          直到逼出你真实的水位线。
-        </p>
-      </header>
+    <div className="flex flex-col">
+      <Hero />
 
-      {error && (
-        <div className="rounded-lg border border-[var(--bad)] bg-[var(--bad)]/10 px-4 py-2 text-sm text-[var(--bad)]">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        <div className="md:col-span-2">
-          <JDInputCard loading={loading} onSubmit={handleSubmit} />
-        </div>
-        <div className="flex flex-col gap-5">
-          <HotJobsCard />
-          <PersonaGalleryCard />
-        </div>
+      {/* 双卡:继续 + 战绩 */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ContinueCard />
+        <BattleStatsCard />
       </div>
 
-      <HowItWorks />
+      <RecommendedChallengers />
+      <LegendGrid />
+      <MissionCards />
+      <TrendingMissions />
+
+      {/* 底部双卡 */}
+      <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-[1.3fr_0.8fr]">
+        <StepsCard />
+        <AchievementCard />
+      </div>
+
+      {/* 底部留白 */}
+      <div className="h-16" />
     </div>
   )
 }

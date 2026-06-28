@@ -11,20 +11,91 @@ export interface PersonaDimensions {
   vision: number
 }
 
+export type PersonaTier = 'mentor' | 'legend'
+
 export interface Persona {
   id: string
+  tier: PersonaTier
   name: string
+  role_title: string                  // "Tech Lead" / "Founder & CEO"
+  avatar: string                       // URL,e.g. /static/personas/zhang-qing.jpg
+  trait_label: string                  // "严厉型" / "原创主义"
+  one_liner: string                    // 一句话风格描述
   tags: string[]
-  description: string
   default_dimensions: PersonaDimensions
+  description?: string                 // 详情页用(部分场景才有)
+  affiliation?: string                 // legend 才有
+  affiliation_slug?: string            // simple-icons slug
+  score?: number                       // 4.x / 9.x 评分,marketing 用
 }
 
 export interface PersonasResponse {
   personas: Persona[]
 }
 
+// ===== 三模式 =====
+export type SessionMode = 'jd_paste' | 'curated' | 'coffee_chat'
+
 export interface CreateSessionRequest {
+  mode: SessionMode
+  jd_text?: string
+  curated_job_id?: string
+}
+
+export interface CreateSessionResponseV2 {
+  session_id: string
+  mode: SessionMode
+  created_at: string
+  jd_summary: JDSummary
+  skill_tree: SkillTree
+}
+
+// ===== 精选 JD / Trending Mission =====
+export interface CuratedJob {
+  id: string
+  title: string
+  company: string
+  company_slug: string
+  location: string
+  salary_range: string
+  difficulty: number  // 1-5
+  tags: string[]
+  challenged_count: number
+}
+
+export interface CuratedJobDetail extends CuratedJob {
   jd_text: string
+}
+
+// ===== Stats =====
+export interface ChallengerStats {
+  persona_id: string
+  challenged_count: number
+  avg_duration_min: number
+  pass_rate: number
+  rating: number
+}
+
+export interface JourneyStats {
+  level: number
+  total: number
+  passed: number
+  avg_score: number
+  defeated: string[]   // persona_id 列表
+}
+
+export interface JourneyHistoryItem {
+  session_id: string
+  created_at: number
+  ended_at: number | null
+  mode: SessionMode
+  persona_id: string | null
+  persona_name: string | null
+  persona_avatar: string | null
+  jd_title: string | null
+  topics_count: number
+  satisfaction_final: number | null
+  duration_minutes: number
 }
 
 export interface JDSummary {

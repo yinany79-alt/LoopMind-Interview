@@ -8,6 +8,7 @@ import type {
   PersonaDimensions,
   RedFlag,
   BrightSpot,
+  SessionMode,
   SkillTree,
   SSEAssistantMessageEnd,
   SSEAssistantMessageStart,
@@ -75,6 +76,7 @@ export interface TurnRecord {
 export interface InterviewState {
   /* —— session 元数据 —— */
   session_id: SessionId | null
+  mode: SessionMode | null
   jd_summary: CreateSessionResponse['jd_summary'] | null
   skill_tree: SkillTree | null
 
@@ -172,6 +174,7 @@ const IDLE_STATE: SSEInterviewerState = {
 
 export const useInterviewStore = create<InterviewState>((set, get) => ({
   session_id: null,
+  mode: null,
   jd_summary: null,
   skill_tree: null,
 
@@ -212,6 +215,7 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
   setSession: (s) =>
     set({
       session_id: s.session_id,
+      mode: (s as { mode?: SessionMode }).mode ?? 'jd_paste',
       jd_summary: s.jd_summary,
       skill_tree: s.skill_tree,
     }),
