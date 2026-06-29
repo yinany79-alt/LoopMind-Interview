@@ -145,8 +145,11 @@ export default function ChallengerTabs({ persona }: Props) {
                   <span className="text-[13px] font-medium text-[var(--text-secondary)]">
                     {r.user}
                   </span>
-                  <span className="text-[12px] text-amber-500">
+                  <span className="text-[12px] tabular-nums text-[var(--text-tertiary)]">
                     {'★'.repeat(r.rating)}
+                    <span className="ml-1 text-[var(--text-quaternary)]">
+                      {'★'.repeat(5 - r.rating)}
+                    </span>
                   </span>
                 </div>
                 <p className="text-[14px] leading-relaxed text-[var(--text-primary)]">
@@ -189,7 +192,7 @@ function StyleContent({ persona }: { persona: Persona }) {
           人格类型
         </h4>
         <p className="mt-2 text-[15px] leading-relaxed text-[var(--text-primary)]">
-          <span className="pill mr-2 bg-[var(--accent-soft)] text-[var(--accent)]">
+          <span className="pill mr-2">
             {persona.trait_label}
           </span>
           {persona.tier === 'legend'

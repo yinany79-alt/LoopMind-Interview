@@ -1,13 +1,16 @@
 /**
- * ChallengerHero — Challenger Detail 顶部大头像 + 名字 + CTA。
+ * ChallengerHero — Faceup V3.1 人物详情页头部(Linear-tier minimal)。
  *
- * 设计:左边大头像 280x280;右边名字 + role + ★ rating + 挑战人数 +
- * 引语 + 标签 + 蓝色"选他来面试"。
+ * 设计:
+ * - 左:正方形大头像(用 Avatar 组件),无浅灰渐变底
+ * - 右:eyebrow + 名字(48px Inter)+ role + 公司 logo + 单行 metric + 引语 + tags
+ * - 主 CTA: "Choose this interviewer"(墨黑)+ ghost "Coffee Chat"
+ * - 数字 mono tabular-nums
  */
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Star, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import type { ChallengerStats, Persona } from '@/types/api'
+import Avatar from '@/components/common/Avatar'
 import BrandIcon from '@/components/icons/BrandIcon'
 
 interface Props {
@@ -25,77 +28,85 @@ export default function ChallengerHero({ persona, stats }: Props) {
   const navigate = useNavigate()
   const rating = stats?.rating ?? persona.score ?? 4.8
   const count = stats?.challenged_count ?? 0
+  const passRate = stats?.pass_rate ?? 0
 
-  const handleAccept = () => {
-    navigate(`/missions?challenger=${persona.id}`)
-  }
-
-  const handleCoffee = () => {
-    navigate(`/missions?challenger=${persona.id}&type=coffee`)
-  }
+  const handleAccept = () => navigate(`/missions?challenger=${persona.id}`)
+  const handleCoffee = () => navigate(`/missions?challenger=${persona.id}&type=coffee`)
 
   return (
-    <section className="grid grid-cols-1 gap-8 md:grid-cols-[280px_1fr]">
-      {/* 大头像 */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#f2f3f5] to-white">
-        <div className="relative aspect-square w-full">
-          <img
-            src={persona.avatar}
-            alt={persona.name}
-            className="absolute inset-0 h-full w-full object-cover"
-            onError={(e) => {
-              const img = e.currentTarget
-              img.style.display = 'none'
-              if (img.parentElement && !img.parentElement.querySelector('.fb')) {
-                const fb = document.createElement('div')
-                fb.className =
-                  'fb absolute inset-0 grid place-items-center text-7xl font-bold text-[var(--text-tertiary)]'
-                fb.textContent = persona.name.charAt(0)
-                img.parentElement.appendChild(fb)
-              }
-            }}
-          />
-        </div>
+    <section className="grid grid-cols-1 gap-10 md:grid-cols-[260px_1fr]">
+      {/* 左:大头像方块 */}
+      <div className="relative">
+        <Avatar name={persona.name} src={persona.avatar} size={260} className="!rounded-2xl" />
       </div>
 
-      {/* 右侧:名字 + role + 评分 + 引语 + 标签 + CTA */}
+      {/* 右 */}
       <div className="flex flex-col">
-        <h1 className="font-display text-[42px] font-semibold leading-tight tracking-tighter text-[var(--text-primary)]">
+        <div className="section-eyebrow">
+          {persona.tier === 'legend' ? 'leader · 大佬' : 'mentor · 导师'}
+        </div>
+
+        <h1
+          className="mt-3 font-display text-[var(--text-primary)]"
+          style={{
+            fontSize: 'clamp(40px, 5vw, 56px)',
+            lineHeight: 1.05,
+            letterSpacing: '-0.035em',
+            fontWeight: 500,
+          }}
+        >
           {persona.name}
         </h1>
 
-        <p className="mt-2 flex items-center gap-2 text-[16px] text-[var(--text-secondary)]">
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-[15px] text-[var(--text-secondary)]">
           <span>{persona.role_title}</span>
           {persona.affiliation && (
             <>
               <span className="text-[var(--text-quaternary)]">·</span>
-              <span>{persona.affiliation}</span>
+              <span className="font-medium text-[var(--text-primary)]">
+                {persona.affiliation}
+              </span>
               {persona.affiliation_slug && (
                 <BrandIcon
                   slug={persona.affiliation_slug}
-                  size={18}
-                  className="text-[var(--text-secondary)]"
+                  size={14}
+                  className="text-[var(--text-tertiary)]"
                 />
               )}
             </>
           )}
         </p>
 
-        <div className="mt-3 inline-flex items-center gap-3 text-[13px] text-[var(--text-tertiary)]">
-          <span className="inline-flex items-center gap-1">
-            <Star size={14} className="fill-amber-400 text-amber-400" />
-            <span className="font-semibold text-[var(--text-primary)]">
+        {/* metric line · mono */}
+        <div className="mt-5 flex items-center gap-5 font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--text-tertiary)]">
+          <span>
+            <span className="tabular-nums text-[13px] font-semibold text-[var(--text-primary)]">
               {rating.toFixed(1)}
             </span>
+            <span className="ml-1">rating</span>
           </span>
-          <span className="text-[var(--text-quaternary)]">·</span>
-          <span>{formatCount(count)} 人挑战</span>
+          <span className="text-[var(--text-quaternary)]">/</span>
+          <span>
+            <span className="tabular-nums text-[13px] font-semibold text-[var(--text-primary)]">
+              {formatCount(count)}
+            </span>
+            <span className="ml-1">runs</span>
+          </span>
+          <span className="text-[var(--text-quaternary)]">/</span>
+          <span>
+            <span className="tabular-nums text-[13px] font-semibold text-[var(--text-primary)]">
+              {passRate}%
+            </span>
+            <span className="ml-1">pass rate</span>
+          </span>
         </div>
 
-        <p className="mt-5 text-[18px] leading-relaxed text-[var(--text-primary)]">
+        {/* quote */}
+        <p className="mt-7 max-w-[560px] text-[19px] leading-[1.55] text-[var(--text-primary)]">
           “{persona.one_liner}”
         </p>
 
+        {/* tags */}
         <div className="mt-5 flex flex-wrap gap-2">
           {persona.tags.map((t) => (
             <span key={t} className="pill">
@@ -104,23 +115,14 @@ export default function ChallengerHero({ persona, stats }: Props) {
           ))}
         </div>
 
-        <div className="mt-auto flex flex-wrap gap-3 pt-8">
-          <motion.button
-            type="button"
-            onClick={handleAccept}
-            whileTap={{ scale: 0.98 }}
-            className="btn-primary"
-          >
-            选他来面试 <ArrowRight size={16} />
-          </motion.button>
-          <motion.button
-            type="button"
-            onClick={handleCoffee}
-            whileTap={{ scale: 0.98 }}
-            className="btn-secondary"
-          >
-            Coffee Chat
-          </motion.button>
+        {/* CTA */}
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button type="button" onClick={handleAccept} className="btn-primary">
+            Choose this interviewer <ArrowRight size={14} />
+          </button>
+          <button type="button" onClick={handleCoffee} className="btn-ghost">
+            或 Coffee Chat →
+          </button>
         </div>
       </div>
     </section>

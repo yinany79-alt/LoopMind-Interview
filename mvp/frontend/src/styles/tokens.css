@@ -1,39 +1,49 @@
-/* Design tokens — Apple light 风,Cyber Interviewer V2 */
+/* Design tokens — Faceup V3 (Linear-tier minimal)
+ *
+ * 灵感：linear.app / vercel.com / loops.so
+ * 哲学：单色 + 极细分隔线 + 大留白 + 精准网格
+ * 蓝色 #1667ff 只用在 ≤2 处 link accent,主 CTA 是墨黑
+ */
 :root {
-  /* ===== 背景层 ===== */
-  --bg-app:        #fbfbfd;       /* Apple SF 暖白 */
-  --bg-primary:    #fbfbfd;       /* 兼容旧引用 */
-  --bg-secondary:  #ffffff;       /* 卡 */
+  /* ===== 背景层(纯白 + 极浅灰)===== */
+  --bg-app:        #ffffff;
+  --bg-primary:    #ffffff;    /* 兼容旧 */
+  --bg-secondary:  #ffffff;
   --bg-card:       #ffffff;
-  --bg-tertiary:   #f5f5f7;       /* pill 标签底 */
+  --bg-tertiary:   #fafafa;
+  --bg-hover:      #f5f5f7;
+  --bg-press:      #efeff2;
 
-  /* ===== 文字层 ===== */
-  --text-primary:    #1d1d1f;     /* Apple 黑 */
-  --text-secondary:  #515154;
-  --text-tertiary:   #86868b;
-  --text-quaternary: #a1a1a6;
+  /* ===== 文字层(纯墨黑 + 二级三级)===== */
+  --text-primary:    #0a0a0a;
+  --text-secondary:  #6b6b70;
+  --text-tertiary:   #9a9aa0;
+  --text-quaternary: #b8b8be;
 
-  /* ===== 描边 ===== */
-  --border:   #e5e5ea;
-  --divider:  #e8e8ed;
+  /* ===== 描边(极细 1px,几乎不可见)===== */
+  --border:   #e5e5e7;
+  --divider:  #ececef;
+  --line:     #f0f0f3;        /* 更弱的分隔 */
 
-  /* ===== 强调色(克制) ===== */
-  --accent:        #1667ff;        /* 主蓝 - "选他来面试" */
-  --accent-soft:   #f2f5ff;
-  --accent-strong: #0a4ce0;        /* hover */
-  --good:          #34c759;        /* "优秀" 评分 */
-  --warn:          #ff9500;
-  --bad:           #ff453a;
-  --score:         #ff4f2e;        /* 分数红橙 */
+  /* ===== 强调色(克制到极致)===== */
+  --ink:       #0a0a0a;        /* 主按钮 = 墨黑,不是蓝 */
+  --ink-hover: #2a2a2e;
+  --accent:    #1667ff;        /* 蓝 = 仅 link / focus,不是主色 */
+  --accent-soft: #eef4ff;
+  --good:      #16a34a;
+  --warn:      #ea580c;
+  --bad:       #dc2626;
+  --score:     #16a34a;        /* 数字用绿,不再用红橙 */
 
-  /* ===== 阴影(极浅) ===== */
-  --shadow-card:        0 12px 36px rgba(0, 0, 0, 0.04);
-  --shadow-card-hover:  0 18px 48px rgba(0, 0, 0, 0.08);
-  --shadow-modal:       0 24px 64px rgba(0, 0, 0, 0.12);
+  /* ===== 阴影(几乎不用,Linear 风格)===== */
+  --shadow-card:        none;
+  --shadow-card-hover:  0 1px 2px rgba(0,0,0,0.04);
+  --shadow-modal:       0 8px 32px rgba(0,0,0,0.08);
 
-  /* ===== 圆角 ===== */
-  --radius-sm:  8px;
-  --radius-md:  12px;
-  --radius-lg:  16px;
-  --radius-xl:  22px;
+  /* ===== 圆角(Linear 风,小)===== */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 }

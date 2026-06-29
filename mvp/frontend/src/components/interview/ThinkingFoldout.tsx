@@ -50,7 +50,7 @@ export default function ThinkingFoldout({
         className={clsx(
           'flex items-center gap-1 text-xs transition-colors',
           pending
-            ? 'text-emerald-600'
+            ? 'text-[var(--text-primary)]'
             : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]',
         )}
       >
@@ -69,7 +69,8 @@ export default function ThinkingFoldout({
             {[0, 1, 2].map((i) => (
               <motion.span
                 key={i}
-                className="h-1 w-1 rounded-full bg-emerald-500"
+                className="h-1 w-1 rounded-full"
+                style={{ background: 'var(--ink)' }}
                 animate={{ opacity: [0.2, 1, 0.2] }}
                 transition={{
                   duration: 1.1,

@@ -50,7 +50,7 @@ export default function TopicProgressPanel() {
               key={n.id}
               className={clsx(
                 'flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-[13px] transition-colors',
-                isCurrent && 'bg-[var(--accent-soft)] text-[var(--text-primary)]',
+                isCurrent && 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]',
                 !isCurrent && isDone && 'text-[var(--text-secondary)]',
                 !isCurrent && !isDone && 'text-[var(--text-tertiary)]',
               )}

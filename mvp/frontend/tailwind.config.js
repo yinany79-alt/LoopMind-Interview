@@ -25,23 +25,24 @@ export default {
       },
       fontFamily: {
         sans: [
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
-          '"SF Pro Display"',
           '"PingFang SC"',
-          '"Inter"',
+          '"Noto Sans SC"',
           'system-ui',
           'sans-serif',
         ],
         display: [
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
-          '"SF Pro Display"',
           '"PingFang SC"',
+          '"Noto Sans SC"',
           'system-ui',
           'sans-serif',
         ],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        mono: ['"JetBrains Mono"', '"SF Mono"', 'ui-monospace', 'monospace'],
       },
       letterSpacing: {
         tightest: '-0.04em',

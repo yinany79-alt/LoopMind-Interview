@@ -1,13 +1,24 @@
 /**
- * BattleStatsCard — Home "我的战绩" 卡。
+ * BattleStatsCard — Faceup V3「我的战绩」(含雷达图,参考 image.png 设计图)。
  *
- * 设计:Lv.7 进阶中 + 小雷达 + 52次/18胜/87分(4 列)。
- * 数据从 GET /api/history/stats(真数据,空 DB 时全 0)。
+ * 设计:
+ * - 左侧:Lv + 3 个 stat 数字
+ * - 右侧:小型 RadarChart(5 维)
+ * - 数字用 tabular-nums + JetBrains Mono
  */
 import { useEffect, useState } from 'react'
-import { TrendingUp } from 'lucide-react'
 import type { JourneyStats } from '@/types/api'
 import { fetchJourneyStats } from '@/api/rest'
+import RadarChart from '@/components/common/RadarChart'
+
+// 静态雷达维度(等真数据接入后从历史 evaluator 聚合)
+const STATIC_RADAR = [
+  { label: '逻辑', value: 78 },
+  { label: '深度', value: 65 },
+  { label: '表达', value: 72 },
+  { label: '原理', value: 55 },
+  { label: '落地', value: 80 },
+]
 
 export default function BattleStatsCard() {
   const [stats, setStats] = useState<JourneyStats | null>(null)
@@ -22,37 +33,61 @@ export default function BattleStatsCard() {
 
   return (
     <article className="card flex items-center gap-5 p-5">
-      {/* 左:Lv */}
-      <div className="shrink-0 rounded-2xl bg-gradient-to-br from-[#eff4ff] to-[#dbe7ff] px-4 py-3 text-center">
-        <div className="font-display text-[28px] font-bold leading-none text-[var(--accent)]">
-          Lv.{data.level}
+      {/* 左:Lv + stats */}
+      <div className="flex-1">
+        <header className="font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--text-tertiary)]">
+          battle record · 我的战绩
+        </header>
+
+        <div className="mt-3 grid grid-cols-4 gap-3">
+          <Stat label="LEVEL" value={`Lv.${data.level}`} highlight />
+          <Stat label="RUNS" value={String(data.total)} />
+          <Stat label="WINS" value={String(data.passed)} />
+          <Stat label="AVG" value={String(data.avg_score)} />
         </div>
-        <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-[var(--accent)]">
-          <TrendingUp size={10} /> 进阶中
-        </div>
+
+        <p className="mt-3 font-mono text-[10px] tabular-nums uppercase tracking-[0.04em] text-[var(--text-quaternary)]">
+          last updated · just now
+        </p>
       </div>
 
-      {/* 中:统计列 */}
-      <div className="flex flex-1 items-end justify-around">
-        <Stat label="面试次数" value={data.total} />
-        <Stat label="胜利次数" value={data.passed} accent />
-        <Stat label="平均分" value={data.avg_score} />
+      {/* 右:小雷达 */}
+      <div className="hidden shrink-0 sm:block">
+        <RadarChart data={STATIC_RADAR} size={120} showLabels={false} />
       </div>
     </article>
   )
 }
 
-function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+function Stat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string
+  value: string
+  highlight?: boolean
+}) {
   return (
-    <div className="text-center">
+    <div>
       <div
-        className={`font-display text-[28px] font-bold leading-none ${
-          accent ? 'text-[var(--score)]' : 'text-[var(--text-primary)]'
+        className="font-mono text-[10px] uppercase tracking-[0.05em] text-[var(--text-tertiary)]"
+        style={{ fontSize: 10 }}
+      >
+        {label}
+      </div>
+      <div
+        className={`mt-1 font-semibold tabular-nums ${
+          highlight ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
         }`}
+        style={{
+          fontSize: 22,
+          letterSpacing: '-0.025em',
+          fontFeatureSettings: '"tnum"',
+        }}
       >
         {value}
       </div>
-      <div className="mt-1.5 text-[11px] text-[var(--text-tertiary)]">{label}</div>
     </div>
   )
 }

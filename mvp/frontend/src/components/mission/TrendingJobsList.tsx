@@ -58,7 +58,7 @@ export default function TrendingJobsList({
                 onClick={() => setSelected(j.id)}
                 className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-all ${
                   active
-                    ? 'border-[var(--accent)] bg-[var(--accent-soft)]/30'
+                    ? 'border-[var(--ink)] bg-[var(--bg-tertiary)]'
                     : 'border-[var(--border)] bg-white hover:border-[var(--text-tertiary)]'
                 }`}
               >
@@ -79,8 +79,11 @@ export default function TrendingJobsList({
                     <span className="inline-flex items-center gap-1">
                       <Users size={11} /> {j.challenged_count.toLocaleString()}
                     </span>
-                    <span className="text-amber-500">
+                    <span className="font-mono tabular-nums text-[var(--text-secondary)]">
                       {'★'.repeat(j.difficulty)}
+                      <span className="text-[var(--text-quaternary)]">
+                        {'★'.repeat(5 - j.difficulty)}
+                      </span>
                     </span>
                   </div>
                 </div>

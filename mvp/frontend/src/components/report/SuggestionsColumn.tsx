@@ -1,8 +1,6 @@
 /**
- * SuggestionsColumn — Report 第 4 列:改进建议。
- * 来源:comments.filter(type === 'weakness')。
+ * SuggestionsColumn — Faceup V3.1 第 4 列(Linear-tier)。
  */
-import { Lightbulb } from 'lucide-react'
 import type { Report } from '@/types/api'
 
 interface Props {
@@ -15,19 +13,20 @@ export default function SuggestionsColumn({ report }: Props) {
 
   return (
     <article className="card flex flex-col p-6">
-      <header className="mb-4 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-        <Lightbulb size={14} className="text-[var(--warn)]" />
-        改进建议
-      </header>
+      <div className="section-eyebrow">to improve · 改进建议</div>
 
       {items.length === 0 ? (
-        <p className="text-[13px] text-[var(--text-tertiary)]">未识别到明显短板。</p>
+        <p className="mt-5 text-[13px] text-[var(--text-tertiary)]">
+          未识别到明显短板。
+        </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="mt-5 space-y-4">
           {items.map((c, i) => (
-            <li key={i} className="flex gap-2.5">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--warn)]" />
-              <span className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            <li key={i} className="flex gap-3">
+              <span className="shrink-0 font-mono text-[10px] tabular-nums uppercase tracking-[0.05em] text-[var(--text-tertiary)]">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span className="text-[13px] leading-[1.65] text-[var(--text-primary)]">
                 {c.text}
               </span>
             </li>

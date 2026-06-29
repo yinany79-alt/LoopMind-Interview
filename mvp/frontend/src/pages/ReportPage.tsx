@@ -126,11 +126,20 @@ export default function ReportPage() {
 
       {/* 主标题 */}
       <div>
-        <h1 className="font-display text-[36px] font-semibold tracking-tightest text-[var(--text-primary)]">
-          Growth Report · 成长报告
+        <div className="section-eyebrow">growth report · 成长报告</div>
+        <h1
+          className="mt-3 font-display text-[var(--text-primary)]"
+          style={{
+            fontSize: 'clamp(36px, 4vw, 48px)',
+            lineHeight: 1.1,
+            letterSpacing: '-0.035em',
+            fontWeight: 500,
+          }}
+        >
+          这一场，你做得如何。
         </h1>
-        <p className="mt-1 text-[13px] text-[var(--text-tertiary)]">
-          生成于 {report.generated_at}
+        <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--text-tertiary)]">
+          generated · {report.generated_at}
         </p>
       </div>
 

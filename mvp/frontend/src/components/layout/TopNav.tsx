@@ -1,8 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
-import { ChevronDown } from 'lucide-react'
+import { Search } from 'lucide-react'
 import clsx from 'clsx'
 import { useDebugMode } from '@/hooks/useDebugMode'
-import { motion } from 'framer-motion'
 
 const NAV_ITEMS = [
   { to: '/', label: '首页', end: true },
@@ -15,32 +14,39 @@ export default function TopNav() {
   const { enabled: debug, toggle } = useDebugMode()
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--divider)] bg-[var(--bg-app)]/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-page-wide items-center justify-between px-8">
-        {/* Brand */}
-        <Link to="/" className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#eaf0ff] to-[#4378ff] font-bold text-white shadow-sm">
-            赛
+    <header
+      className="sticky top-0 z-30 border-b border-[var(--divider)]"
+      style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(20px)' }}
+    >
+      <div className="mx-auto flex h-14 max-w-page-wide items-center justify-between px-8">
+        {/* Brand — Faceup wordmark */}
+        <Link to="/" className="group flex items-baseline gap-2.5">
+          <div
+            className="grid h-6 w-6 place-items-center rounded-[5px] text-white"
+            style={{ background: 'var(--ink)' }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <circle cx="3" cy="5" r="1.5" fill="currentColor" />
+              <circle cx="7" cy="5" r="1.5" fill="currentColor" />
+            </svg>
           </div>
-          <div className="leading-tight">
-            <div className="font-display text-[15px] font-semibold tracking-tight text-[var(--text-primary)]">
-              赛博面试官
-            </div>
-            <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
-              Cyber interviewer
-            </div>
-          </div>
+          <span className="text-[15px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+            Faceup
+          </span>
+          <span className="hidden font-mono text-[10px] uppercase tracking-[0.15em] text-[var(--text-tertiary)] sm:inline">
+            照面
+          </span>
         </Link>
 
         {/* Nav */}
-        <nav className="hidden items-center gap-1 text-sm md:flex">
+        <nav className="hidden items-center gap-1 md:flex">
           {NAV_ITEMS.map((item) =>
             item.disabled ? (
               <button
                 key={item.label}
                 type="button"
                 disabled
-                className="cursor-not-allowed rounded-md px-4 py-2 text-[var(--text-tertiary)]"
+                className="cursor-not-allowed rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-[var(--text-quaternary)]"
                 title="即将上线"
               >
                 {item.label}
@@ -52,9 +58,9 @@ export default function TopNav() {
                 end={item.end}
                 className={({ isActive }) =>
                   clsx(
-                    'rounded-md px-4 py-2 font-medium transition-colors',
+                    'rounded-[6px] px-3 py-1.5 text-[13px] font-medium transition-colors',
                     isActive
-                      ? 'text-[var(--accent)]'
+                      ? 'text-[var(--text-primary)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
                   )
                 }
@@ -65,36 +71,52 @@ export default function TopNav() {
           )}
         </nav>
 
-        {/* Right: debug + avatar */}
-        <div className="flex items-center gap-3">
-          <motion.button
+        {/* Right */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="grid h-8 w-8 place-items-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            disabled
+            title="搜索(即将上线)"
+          >
+            <Search size={14} strokeWidth={2} />
+          </button>
+
+          <button
             type="button"
             onClick={toggle}
-            whileTap={{ scale: 0.96 }}
             className={clsx(
-              'hidden rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all md:inline-flex',
+              'hidden rounded-[6px] px-3 py-1.5 text-[12px] font-medium transition-colors md:inline-flex',
               debug
-                ? 'border-[var(--bad)] bg-[var(--bad)] text-white shadow-sm hover:bg-[var(--bad)]/90'
-                : 'border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]',
+                ? 'bg-[var(--ink)] text-white'
+                : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
             )}
             title="Cmd/Ctrl+Shift+D"
             aria-pressed={debug}
           >
-            {debug ? '调试中 · 关闭' : 'Debug'}
-          </motion.button>
+            {debug ? 'Debug on' : 'Debug'}
+          </button>
 
           <button
             type="button"
-            className="flex items-center gap-2 rounded-full px-2 py-1 transition-colors hover:bg-[var(--bg-tertiary)]"
+            className="hidden rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] md:inline-flex"
             disabled
-            title="账号 (即将上线)"
           >
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#eaf0ff] to-[#bcd2ff]" />
-            <span className="hidden text-sm font-medium text-[var(--text-secondary)] md:inline">
-              小张同学
-            </span>
-            <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
+            Sign in
           </button>
+
+          <Link
+            to="/"
+            className="btn-primary !py-1.5 !px-3"
+            onClick={(e) => {
+              e.preventDefault()
+              document
+                .getElementById('challengers')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }}
+          >
+            Start →
+          </Link>
         </div>
       </div>
     </header>

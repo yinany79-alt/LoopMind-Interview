@@ -1,80 +1,73 @@
 /**
- * ContinueCard — 继续上次的挑战(占位 UI)。
+ * ContinueCard — Faceup V3「继续上次的挑战」(Linear-tier minimal,占位 UI)。
  *
- * 本期不接真实未完成 session resume(SSE event queue 内存,重启就丢)。
- * 显示静态示例数据:[头像] 张青 · Tech Lead · Agent PM 面试挑战 · 已完成 63% · [继续]
- *
- * 设计:左 头像 / 中 标题+副标 / 右 [继续] 按钮 + 进度条。
+ * 设计:
+ * - 卡顶部一行 mono eyebrow"in progress · 63%"
+ * - Avatar + 名字 · 角色 + 一段叙事性 quote(不是冷冰冰"Agent PM 面试挑战")
+ * - 进度条:1.5px 高,墨黑色
+ * - 右下角文字 link"继续 →"(不是大按钮)
  */
 import { ArrowRight } from 'lucide-react'
+import Avatar from '@/components/common/Avatar'
 
 export default function ContinueCard() {
-  // 占位数据
   const recent = {
     persona_name: '张青',
     persona_role: 'Tech Lead',
     persona_avatar: '/static/personas/zhang-qing.jpg',
-    job_title: 'Agent PM 面试挑战',
+    job_title: 'Agent PM 面试',
     progress: 63,
+    narrative: '正在追问你那个被砍掉的 feature,到底是谁的判断',
   }
 
   return (
-    <article className="card flex items-center gap-4 p-5">
-      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[var(--bg-tertiary)]">
-        <img
-          src={recent.persona_avatar}
-          alt={recent.persona_name}
-          className="h-full w-full object-cover"
-          onError={(e) => {
-            const img = e.currentTarget
-            img.style.display = 'none'
-            if (img.parentElement && !img.parentElement.querySelector('.fb')) {
-              const fb = document.createElement('div')
-              fb.className =
-                'fb grid h-full w-full place-items-center text-2xl font-semibold text-[var(--text-tertiary)]'
-              fb.textContent = recent.persona_name.charAt(0)
-              img.parentElement.appendChild(fb)
-            }
+    <article className="card flex flex-col gap-4 p-5">
+      <header className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--text-tertiary)]">
+        <span>in progress · 继续上次</span>
+        <span className="tabular-nums text-[var(--text-primary)]">
+          {recent.progress}%
+        </span>
+      </header>
+
+      <div className="flex items-start gap-3">
+        <Avatar name={recent.persona_name} src={recent.persona_avatar} size={44} />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[14px] font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
+            {recent.persona_name}
+            <span className="ml-1.5 text-[12px] font-normal text-[var(--text-secondary)]">
+              · {recent.persona_role}
+            </span>
+          </h3>
+          <p className="mt-1 line-clamp-2 text-[12.5px] leading-snug text-[var(--text-secondary)]">
+            {recent.narrative}
+          </p>
+        </div>
+      </div>
+
+      {/* 进度条 */}
+      <div className="relative h-[3px] overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${recent.progress}%`,
+            background: 'var(--ink)',
           }}
         />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">
-            继续上次的挑战
-          </h3>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
-            {recent.progress}% completed
-          </span>
-        </div>
-        <p className="mt-1.5 truncate text-[14px] text-[var(--text-secondary)]">
-          <span className="font-medium text-[var(--text-primary)]">
-            {recent.persona_name}
-          </span>
-          <span className="ml-1 text-[var(--text-tertiary)]">
-            · {recent.persona_role}
-          </span>
-          <span className="mx-1 text-[var(--text-quaternary)]">|</span>
+      <div className="flex items-center justify-between border-t border-[var(--line)] pt-3">
+        <span className="font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--text-tertiary)]">
           {recent.job_title}
-        </p>
-        {/* 进度条 */}
-        <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
-          <div
-            className="h-full rounded-full bg-[var(--accent)] transition-all"
-            style={{ width: `${recent.progress}%` }}
-          />
-        </div>
+        </span>
+        <button
+          type="button"
+          disabled
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--text-quaternary)]"
+          title="即将上线"
+        >
+          继续 <ArrowRight size={12} />
+        </button>
       </div>
-
-      <button
-        type="button"
-        disabled
-        className="btn-secondary shrink-0 opacity-60"
-        title="即将上线"
-      >
-        继续挑战 <ArrowRight size={14} />
-      </button>
     </article>
   )
 }

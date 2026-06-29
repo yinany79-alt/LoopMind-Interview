@@ -1,13 +1,14 @@
 /**
- * TrendingMissions — Home 热门挑战 section(curated jobs 4 张)。
+ * TrendingMissions — Faceup V3 「热门挑战」(精选 JD 网格)。
  *
- * 设计:小卡 = 公司 logo + 岗位名 + 公司 + N 人挑战。
- * 点 → 跳 /missions?type=trending&job={id} (Mission 页打开对应 JD)
+ * 设计:
+ * - 4 张 list-style 卡(横排,公司 logo 在左,信息在右)
+ * - 没有卡片大色块,纯白底 + 1px 边
+ * - 公司 logo + 岗位 + 城市 + 人数(JetBrains Mono)
  */
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ChevronRight, Users } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import type { CuratedJob } from '@/types/api'
 import { fetchCuratedJobs } from '@/api/rest'
 import BrandIcon from '@/components/icons/BrandIcon'
@@ -25,51 +26,45 @@ export default function TrendingMissions() {
   if (jobs.length === 0) return null
 
   return (
-    <section id="trending" className="mt-10">
-      <header className="mb-5 flex items-baseline justify-between">
+    <section id="trending" className="mt-12 pt-6">
+      <div className="hairline mb-6" />
+      <header className="mb-6 flex items-end justify-between">
         <div>
-          <h2 className="font-display text-[24px] font-semibold tracking-tighter text-[var(--text-primary)]">
-            热门挑战
-          </h2>
-          <p className="mt-1 text-[13px] text-[var(--text-tertiary)]">
-            Trending Missions · 行业真实岗位
-          </p>
+          <div className="section-eyebrow">trending · 热门挑战</div>
+          <h2 className="section-title mt-2">真实岗位,真实追问</h2>
         </div>
         <button
           type="button"
           onClick={() => navigate('/missions?type=trending')}
-          className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--accent)]"
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         >
-          查看全部 <ChevronRight size={14} />
+          See all <ArrowRight size={12} />
         </button>
       </header>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {jobs.map((j) => (
-          <motion.button
+          <button
             key={j.id}
             type="button"
             onClick={() => navigate(`/missions?type=trending&job=${j.id}`)}
-            whileHover={{ y: -3 }}
-            whileTap={{ scale: 0.99 }}
-            transition={{ duration: 0.2 }}
-            className="card card-hover flex items-center gap-3 p-4 text-left"
+            className="card card-hover group flex items-start gap-3 p-4 text-left"
           >
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
-              <BrandIcon slug={j.company_slug} size={22} />
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[6px] bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
+              <BrandIcon slug={j.company_slug} size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-[14px] font-semibold text-[var(--text-primary)]">
+              <h3 className="truncate text-[13px] font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
                 {j.title}
               </h3>
-              <p className="mt-0.5 truncate text-[12px] text-[var(--text-tertiary)]">
-                {j.company}
+              <p className="mt-0.5 truncate text-[11px] text-[var(--text-tertiary)]">
+                {j.company} · {j.location}
               </p>
-              <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-[var(--text-tertiary)]">
-                <Users size={10} /> {j.challenged_count.toLocaleString()} 人挑战
+              <p className="mt-2 font-mono text-[10px] tabular-nums text-[var(--text-quaternary)]">
+                {j.challenged_count.toLocaleString()} runs
               </p>
             </div>
-          </motion.button>
+          </button>
         ))}
       </div>
     </section>

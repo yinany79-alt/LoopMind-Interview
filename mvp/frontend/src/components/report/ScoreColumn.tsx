@@ -1,5 +1,10 @@
 /**
- * ScoreColumn — Report 第 1 列:综合评分。
+ * ScoreColumn — Faceup V3.1 第 1 列:综合评分(Linear-tier)。
+ *
+ * 设计:
+ * - eyebrow + 巨大 mono 分数 + 简短 label
+ * - 评分等级只在 ≥85 时显绿,其余全墨色
+ * - 底部一段叙事性 summary,不堆数字
  */
 import type { Report } from '@/types/api'
 
@@ -8,42 +13,52 @@ interface Props {
 }
 
 function scoreLabel(score: number): { text: string; tone: string } {
-  if (score >= 85) return { text: '优秀', tone: 'text-[var(--good)]' }
-  if (score >= 70) return { text: '良好', tone: 'text-[var(--accent)]' }
-  if (score >= 55) return { text: '及格', tone: 'text-[var(--warn)]' }
-  return { text: '待提升', tone: 'text-[var(--bad)]' }
+  if (score >= 85) return { text: 'Excellent', tone: 'text-[var(--good)]' }
+  if (score >= 70) return { text: 'Solid', tone: 'text-[var(--text-primary)]' }
+  if (score >= 55) return { text: 'Decent', tone: 'text-[var(--text-secondary)]' }
+  return { text: 'Needs work', tone: 'text-[var(--text-secondary)]' }
 }
 
 export default function ScoreColumn({ report }: Props) {
   const score = report.verdict?.overall_score ?? 0
   const label = scoreLabel(score)
-  // 简单百分位估算(实际应从 history 算)
   const beat = Math.min(99, Math.max(20, score - 1))
 
   return (
     <article className="card flex flex-col p-6">
-      <header className="text-[12px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-        综合评分
-      </header>
+      <div className="section-eyebrow">overall · 综合评分</div>
 
-      <div className="my-5">
-        <div className="font-display text-[64px] font-bold leading-none tracking-tightest text-[var(--text-primary)]">
+      <div className="mt-5 flex items-baseline gap-2 font-mono tabular-nums">
+        <span
+          className="font-display text-[var(--text-primary)]"
+          style={{
+            fontSize: 64,
+            lineHeight: 1,
+            letterSpacing: '-0.04em',
+            fontWeight: 500,
+          }}
+        >
           {score}
-          <span className="text-[24px] font-medium text-[var(--text-tertiary)]">
-            /100
-          </span>
-        </div>
-        <div className={`mt-2 inline-block text-[14px] font-semibold ${label.tone}`}>
-          {label.text}
-        </div>
+        </span>
+        <span className="font-mono text-[20px] text-[var(--text-tertiary)]">
+          /100
+        </span>
       </div>
 
-      <p className="text-[12px] text-[var(--text-tertiary)]">
-        超过了 <span className="font-semibold text-[var(--text-primary)]">{beat}%</span> 的用户
-      </p>
+      <div className={`mt-3 text-[13px] font-semibold ${label.tone}`}>
+        {label.text}
+      </div>
+
+      <div className="mt-5 border-t border-[var(--line)] pt-4 font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--text-tertiary)]">
+        ranked above
+        <span className="ml-1 tabular-nums text-[var(--text-primary)]">
+          {beat}%
+        </span>
+        <span className="ml-1">of users</span>
+      </div>
 
       {report.verdict?.summary && (
-        <p className="mt-4 border-t border-[var(--divider)] pt-4 text-[12px] leading-relaxed text-[var(--text-secondary)]">
+        <p className="mt-4 text-[13px] leading-[1.65] text-[var(--text-secondary)]">
           {report.verdict.summary}
         </p>
       )}

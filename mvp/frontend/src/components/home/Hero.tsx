@@ -1,53 +1,45 @@
 /**
- * Hero — 首页主标题区。
+ * Hero — Faceup 首页主标题区(Linear-tier minimal)。
  *
- * 设计:左侧大标题 + 副标 + 双 CTA;右侧 OrbVisual。
- * 严格 Apple 风:大字距、轻字重、克制留白。
+ * 设计哲学:克制 + 大留白 + 主 CTA 用墨黑(不是蓝)
+ * 文案改为短促有节奏的英文 + 中文小字副标
  */
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import OrbVisual from './OrbVisual'
+import { ArrowRight } from 'lucide-react'
+import BreathingDot from './BreathingDot'
 
 export default function Hero() {
   const navigate = useNavigate()
 
   return (
-    <section className="grid grid-cols-1 items-center gap-10 py-12 md:grid-cols-2 md:py-16">
-      {/* 左侧:标题 + 副标 + CTA */}
+    <section className="grid grid-cols-1 items-center gap-16 py-20 md:grid-cols-[1.1fr_1fr] md:py-24">
+      {/* 左侧:eyebrow + 标题 + 副标 + CTA */}
       <div>
-        <motion.h1
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="font-display text-[56px] font-semibold leading-[1.05] tracking-tightest text-[var(--text-primary)] md:text-[64px]"
-        >
-          Who will
-          <br />
-          <span className="text-[var(--accent)]">challenge you</span>
-          <br />
-          today?
-        </motion.h1>
+        <div className="section-eyebrow mb-8">interview · honestly</div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
-          className="mt-7 max-w-md"
+        <h1
+          className="font-display text-[var(--text-primary)]"
+          style={{
+            fontSize: 'clamp(56px, 7vw, 96px)',
+            lineHeight: 0.95,
+            letterSpacing: '-0.045em',
+            fontWeight: 500,
+          }}
         >
-          <p className="text-[19px] font-medium text-[var(--text-primary)]">
-            今天谁来面你?
-          </p>
-          <p className="mt-2 text-[15px] leading-relaxed text-[var(--text-tertiary)]">
-            不同的面试官,不同的风格,收获不同的成长。
-          </p>
-        </motion.div>
+          Practice the
+          <br />
+          interview you&apos;re
+          <br />
+          afraid of.
+        </h1>
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
-          className="mt-8 flex flex-wrap gap-3"
-        >
+        <p className="mt-8 max-w-[460px] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
+          被一位真实的面试官追问到底。
+          <br />
+          没有套路,没有 SEO 答案,只有你的真实水位线。
+        </p>
+
+        <div className="mt-10 flex flex-wrap items-center gap-3">
           <button
             type="button"
             className="btn-primary"
@@ -57,25 +49,25 @@ export default function Hero() {
                 ?.scrollIntoView({ behavior: 'smooth' })
             }}
           >
-            选择面试官
+            Choose your interviewer <ArrowRight size={14} />
           </button>
           <button
             type="button"
-            className="btn-secondary"
+            className="btn-ghost"
             onClick={() => {
               document
                 .getElementById('trending')
                 ?.scrollIntoView({ behavior: 'smooth' })
             }}
           >
-            查看热门岗位
+            或看热门岗位 →
           </button>
-        </motion.div>
+        </div>
       </div>
 
-      {/* 右侧:OrbVisual */}
+      {/* 右侧:breathing dot */}
       <div className="hidden md:block">
-        <OrbVisual />
+        <BreathingDot />
       </div>
     </section>
   )

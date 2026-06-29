@@ -1,8 +1,8 @@
 /**
- * HighlightsColumn — Report 第 3 列:本次表现亮点。
- * 来源:comments.filter(type === 'strength')。
+ * HighlightsColumn — Faceup V3.1 第 3 列(Linear-tier)。
+ *
+ * 设计:去掉 Sparkles icon + good 色块,改 mono 编号 + 墨色文字
  */
-import { Sparkles } from 'lucide-react'
 import type { Report } from '@/types/api'
 
 interface Props {
@@ -15,19 +15,20 @@ export default function HighlightsColumn({ report }: Props) {
 
   return (
     <article className="card flex flex-col p-6">
-      <header className="mb-4 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-        <Sparkles size={14} className="text-[var(--good)]" />
-        本次表现亮点
-      </header>
+      <div className="section-eyebrow">strengths · 表现亮点</div>
 
       {items.length === 0 ? (
-        <p className="text-[13px] text-[var(--text-tertiary)]">未识别到突出亮点。</p>
+        <p className="mt-5 text-[13px] text-[var(--text-tertiary)]">
+          未识别到突出亮点。
+        </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="mt-5 space-y-4">
           {items.map((c, i) => (
-            <li key={i} className="flex gap-2.5">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--good)]" />
-              <span className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            <li key={i} className="flex gap-3">
+              <span className="shrink-0 font-mono text-[10px] tabular-nums uppercase tracking-[0.05em] text-[var(--text-tertiary)]">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span className="text-[13px] leading-[1.65] text-[var(--text-primary)]">
                 {c.text}
               </span>
             </li>

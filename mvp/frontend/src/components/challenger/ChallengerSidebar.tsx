@@ -68,7 +68,7 @@ export default function ChallengerSidebar({ persona }: Props) {
         </header>
         <div className="flex flex-wrap gap-2">
           {expertise.map((e) => (
-            <span key={e} className="pill bg-[var(--accent-soft)] text-[var(--accent)]">
+            <span key={e} className="pill">
               {e}
             </span>
           ))}

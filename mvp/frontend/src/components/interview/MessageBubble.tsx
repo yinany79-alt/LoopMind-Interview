@@ -1,3 +1,12 @@
+/**
+ * MessageBubble — Faceup V3.1(Linear-tier 对话气泡)。
+ *
+ * 设计:
+ * - user 气泡:墨黑底白字(不是蓝软色)
+ * - interviewer 消息:无气泡边框,纯文字 + 顶部 mono 元信息
+ * - pending 态:左侧极细墨色竖线,不是 emerald 边
+ * - mode 标签:统一 .pill mono,不用色块
+ */
 import clsx from 'clsx'
 import type { ChatMessage } from '@/store/interviewStore'
 import TypewriterText from './TypewriterText'
@@ -9,17 +18,20 @@ interface Props {
 }
 
 const MODE_LABEL: Record<string, string> = {
-  OPENING: '开场',
-  DRILL_DOWN: '追问',
-  SWITCH_TOPIC: '换题',
-  INTERRUPT: '打断',
+  OPENING: 'opening',
+  DRILL_DOWN: 'drill-down',
+  SWITCH_TOPIC: 'switch',
+  INTERRUPT: 'cut',
 }
 
 export default function MessageBubble({ msg, debug }: Props) {
   if (msg.role === 'user') {
     return (
-      <div className="mb-5 flex justify-end">
-        <div className="max-w-[80%] rounded-2xl bg-[var(--accent-soft)] px-4 py-2.5 text-[15px] leading-relaxed text-[var(--text-primary)] shadow-sm">
+      <div className="mb-6 flex justify-end">
+        <div
+          className="max-w-[80%] rounded-xl px-4 py-2.5 text-[14.5px] leading-[1.55]"
+          style={{ background: 'var(--ink)', color: '#fff' }}
+        >
           <div className="whitespace-pre-wrap">{msg.text}</div>
         </div>
       </div>
@@ -30,35 +42,40 @@ export default function MessageBubble({ msg, debug }: Props) {
   const isAwaitingThinking = isPending && msg.thinking_steps.length === 0
 
   return (
-    <div className="mb-5">
-      <div className="mb-1 flex items-baseline gap-2">
-        <span className="text-xs font-medium text-[var(--text-secondary)]">面试官</span>
+    <div className="mb-6">
+      {/* meta:面试官 · mode · topic — 全 mono 灰 */}
+      <div className="mb-1.5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.05em] text-[var(--text-tertiary)]">
+        <span>interviewer</span>
+        <span className="text-[var(--text-quaternary)]">·</span>
         <span
           className={clsx(
-            'rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide',
             msg.mode === 'INTERRUPT'
-              ? 'bg-[var(--bad)]/15 text-[var(--bad)]'
+              ? 'text-[var(--bad)]'
               : msg.mode === 'DRILL_DOWN'
-                ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]',
+                ? 'text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)]',
           )}
         >
-          {MODE_LABEL[msg.mode] ?? msg.mode}
+          {MODE_LABEL[msg.mode] ?? msg.mode.toLowerCase()}
         </span>
         {msg.topic_name && (
-          <span className="text-[11px] text-[var(--text-tertiary)]">
-            · {msg.topic_name}
-            {msg.depth > 0 ? ` (深度 ${msg.depth})` : ''}
-          </span>
+          <>
+            <span className="text-[var(--text-quaternary)]">·</span>
+            <span className="normal-case tracking-normal text-[var(--text-secondary)]">
+              {msg.topic_name}
+              {msg.depth > 0 ? ` · d${msg.depth}` : ''}
+            </span>
+          </>
         )}
       </div>
+
+      {/* body */}
       <div
         className={clsx(
-          'max-w-[88%] rounded-2xl border px-4 py-3 text-[15px] leading-relaxed shadow-sm',
-          isPending
-            ? 'border-emerald-200 bg-emerald-50/30 dark:bg-emerald-950/10'
-            : 'border-[var(--border)] bg-[var(--bg-secondary)]',
+          'max-w-[88%] text-[15px] leading-[1.65] text-[var(--text-primary)]',
+          isPending && 'border-l-2 pl-3',
         )}
+        style={isPending ? { borderColor: 'var(--ink)' } : undefined}
       >
         {!isAwaitingThinking && msg.text.length > 0 && (
           <TypewriterText text={msg.text} done={msg.done} />

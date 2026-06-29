@@ -1,11 +1,8 @@
 /**
- * AchievementCard — Home 右下"最高成就"卡。
- *
- * 设计:大图标 + "击败 Kai Chen" + "超过 85% 的用户"。
- * 真数据从 JourneyStats.defeated[0]; 空时显示"开启你的第一次挑战"。
+ * AchievementCard — Faceup V3「最高成就」(无 emoji)。
  */
 import { useEffect, useState } from 'react'
-import { Trophy, ChevronRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { fetchJourneyStats } from '@/api/rest'
 
 export default function AchievementCard() {
@@ -21,45 +18,46 @@ export default function AchievementCard() {
 
   return (
     <article className="card p-6">
-      <header className="mb-4 flex items-baseline justify-between">
-        <h3 className="font-display text-[18px] font-semibold tracking-tighter text-[var(--text-primary)]">
-          最高成就
+      <header className="mb-5">
+        <div className="section-eyebrow">your peak · 最高成就</div>
+        <h3 className="section-title mt-2">
+          {defeated ? `Beat ${defeated}` : '尚未开始'}
         </h3>
-        <button
-          type="button"
-          disabled
-          className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--text-quaternary)]"
-        >
-          查看全部 <ChevronRight size={12} />
-        </button>
       </header>
 
-      <div className="flex items-center gap-4">
-        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-500">
-          <Trophy size={26} />
-        </div>
-        <div>
-          {defeated ? (
-            <>
-              <div className="text-[20px] font-semibold text-[var(--text-primary)]">
-                击败 {defeated}
-              </div>
-              <div className="mt-1 text-[12px] text-[var(--text-tertiary)]">
-                超过 85% 的用户。
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-[16px] font-semibold text-[var(--text-primary)]">
-                开启你的第一次挑战
-              </div>
-              <div className="mt-1 text-[12px] text-[var(--text-tertiary)]">
-                选一位面试官,接受挑战。
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      {defeated ? (
+        <>
+          <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            一个把你按在椅子上追问 40 分钟的人，被你说服了。
+            <br />
+            你超过 85% 的用户。
+          </p>
+          <button
+            type="button"
+            disabled
+            className="mt-5 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--text-quaternary)]"
+          >
+            查看全部成就 <ArrowRight size={12} />
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            完成第一场挑战,这里会记下你击败的第一位面试官。
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              document
+                .getElementById('challengers')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            className="mt-5 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--accent)] transition-colors hover:text-[var(--ink)]"
+          >
+            选一位面试官 <ArrowRight size={12} />
+          </button>
+        </>
+      )}
     </article>
   )
 }
