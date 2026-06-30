@@ -26,7 +26,7 @@ const PORTRAITS: Portrait[] = [
   { id: 'stern',      trait: 'sharp',    src: '/portraits/stern.png',      offsetY: 24, height: 280, focusX: '60%', focusY: '30%' },
   { id: 'mentor',     trait: 'patient',  src: '/portraits/mentor.png',     offsetY: 0,  height: 320, focusX: '55%', focusY: '35%' },
   { id: 'researcher', trait: 'curious',  src: '/portraits/researcher.png', offsetY: 40, height: 260, focusX: '50%', focusY: '30%' },
-  { id: 'challenger', trait: 'bold',     src: '/portraits/challenger.png', offsetY: 12, height: 300, focusX: '50%', focusY: '32%' },
+  { id: 'challenger', trait: 'bold',     src: '/portraits/challenger.png', offsetY: 12, height: 300, focusX: '60%', focusY: '32%' },
   { id: 'visionary',  trait: 'distant',  src: '/portraits/visionary.png',  offsetY: 32, height: 270, focusX: '62%', focusY: '38%' },
 ]
 
