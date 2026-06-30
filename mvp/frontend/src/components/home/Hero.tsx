@@ -1,103 +1,75 @@
 /**
- * Hero — Faceup V4 首页主标题区(Apple Newsroom-tier)。
+ * Hero — Faceup V4.1 首页主标题区(左右分栏)。
  *
- * 设计参照 preview 2/index.html:
- * - 居中布局(不是左右分栏)
- * - 80px Source Serif 4 + italic 渐变高亮强调词
- * - 28px 中文副标 + 19px 描述
- * - 单个 primary CTA(胶囊形)
- * - 底部 mono meta "今日 N / N 次免费挑战"
+ * 设计:
+ * - 左侧:eyebrow + 英文标题 + 中文副标 + 双 CTA
+ * - 右侧:PortraitWall(5 张诺奖风窄竖条,默认灰度 hover 变彩)
+ *
+ * 标题保留 Linear-tier 风格(Inter clamp,不用 Newsroom serif italic)
+ * 因为 V3.1 那版的字面意境跟 PortraitWall 装饰最贴。
  */
-import { useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
+import PortraitWall from './PortraitWall'
 
 export default function Hero() {
-  const navigate = useNavigate()
-
   return (
-    <header className="mx-auto flex max-w-[900px] flex-col items-center px-6 py-24 text-center md:py-32">
-      {/* 主标题 · Serif italic + 渐变高亮 */}
-      <h1
-        className="font-serif text-[var(--text-primary)]"
-        style={{
-          fontSize: 'clamp(48px, 7vw, 80px)',
-          lineHeight: 1.05,
-          fontWeight: 500,
-          letterSpacing: '-0.025em',
-        }}
-      >
-        Who will{' '}
-        <span
+    <section className="grid grid-cols-1 items-center gap-16 py-20 md:grid-cols-[1.1fr_1fr] md:py-24">
+      {/* 左:eyebrow + 标题 + 副标 + CTA */}
+      <div>
+        <div className="section-eyebrow mb-8">interview · honestly</div>
+
+        <h1
+          className="font-display text-[var(--text-primary)]"
           style={{
-            fontStyle: 'italic',
-            background:
-              'linear-gradient(135deg, #c96442 0%, #d97757 50%, #b94a8d 100%)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
+            fontSize: 'clamp(56px, 7vw, 96px)',
+            lineHeight: 0.95,
+            letterSpacing: '-0.045em',
+            fontWeight: 500,
           }}
         >
-          challenge you
-        </span>{' '}
-        today?
-      </h1>
+          Practice the
+          <br />
+          interview you&apos;re
+          <br />
+          afraid of.
+        </h1>
 
-      {/* 中文副标 */}
-      <div
-        className="mt-8 text-[var(--text-primary)]"
-        style={{
-          fontSize: 'clamp(20px, 2.2vw, 28px)',
-          fontWeight: 400,
-          letterSpacing: '-0.015em',
-        }}
-      >
-        今天,让谁来面你。
+        <p className="mt-8 max-w-[460px] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
+          被一位真实的面试官追问到底。
+          <br />
+          没有套路,没有 SEO 答案,只有你的真实水位线。
+        </p>
+
+        <div className="mt-10 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              document
+                .getElementById('challengers')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }}
+          >
+            Choose your interviewer <ArrowRight size={14} />
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => {
+              document
+                .getElementById('trending')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }}
+          >
+            或看热门岗位 →
+          </button>
+        </div>
       </div>
 
-      {/* 描述 */}
-      <p className="mt-5 max-w-[620px] text-[17px] leading-[1.55] text-[var(--text-secondary)]">
-        不同的面试官,不同的风格,不同的成长。
-        <br />
-        把简历或 JD 交给 AI,让它替你模拟一场真正的高压面试。
-      </p>
-
-      {/* CTA · 胶囊形 */}
-      <button
-        type="button"
-        onClick={() => {
-          document
-            .getElementById('challengers')
-            ?.scrollIntoView({ behavior: 'smooth' })
-        }}
-        className="group mt-12 inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-[14.5px] font-medium text-white transition-all"
-        style={{
-          background: 'var(--ink)',
-          letterSpacing: '-0.005em',
-        }}
-        onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.background =
-            'var(--ink-hover)'
-        }}
-        onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--ink)'
-        }}
-      >
-        投递 JD,开始挑战
-        <ArrowRight
-          size={14}
-          className="transition-transform group-hover:translate-x-1"
-        />
-      </button>
-
-      {/* meta · 今日剩余 */}
-      <div className="mt-4 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--text-tertiary)]">
-        <span
-          className="inline-block h-1.5 w-1.5 rounded-full"
-          style={{ background: 'var(--good)' }}
-        />
-        今日剩 3 / 3 次免费挑战
+      {/* 右:5 张诺奖风窄竖条 */}
+      <div className="hidden md:block">
+        <PortraitWall />
       </div>
-    </header>
+    </section>
   )
 }
