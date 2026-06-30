@@ -46,16 +46,16 @@ export default function RecommendedChallengers({ fallbackCounts = {} }: Props) {
       </header>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-7 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="card h-[240px] animate-pulse bg-[var(--bg-tertiary)]/60"
+              className="aspect-[4/5] animate-pulse rounded-2xl bg-[var(--bg-tertiary)]/60"
             />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-x-7 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
           {personas.map((p) => (
             <ChallengerCard
               key={p.id}

@@ -42,6 +42,13 @@ export default {
           'system-ui',
           'sans-serif',
         ],
+        serif: [
+          '"Source Serif 4"',
+          '"Source Serif Pro"',
+          'Georgia',
+          '"PingFang SC"',
+          'serif',
+        ],
         mono: ['"JetBrains Mono"', '"SF Mono"', 'ui-monospace', 'monospace'],
       },
       letterSpacing: {

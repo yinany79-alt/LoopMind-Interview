@@ -13,6 +13,7 @@
   --bg-tertiary:   #fafafa;
   --bg-hover:      #f5f5f7;
   --bg-press:      #efeff2;
+  --surface-dark:  #1d1d1f;    /* legend portrait 卡的深色底 */
 
   /* ===== 文字层(纯墨黑 + 二级三级)===== */
   --text-primary:    #0a0a0a;

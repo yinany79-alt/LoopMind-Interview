@@ -22,6 +22,7 @@ _PUBLIC_FIELDS = (
     "affiliation",
     "affiliation_slug",
     "score",
+    "first_principle",
 )
 
 

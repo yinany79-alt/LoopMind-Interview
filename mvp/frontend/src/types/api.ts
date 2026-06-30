@@ -27,6 +27,7 @@ export interface Persona {
   affiliation?: string                 // legend 才有
   affiliation_slug?: string            // simple-icons slug
   score?: number                       // 4.x / 9.x 评分,marketing 用
+  first_principle?: string             // 人物信奉的第一性原理,hover 浮层用
 }
 
 export interface PersonasResponse {

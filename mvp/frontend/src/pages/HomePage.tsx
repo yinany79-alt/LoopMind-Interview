@@ -1,11 +1,12 @@
 /**
- * HomePage — Faceup V3 首页(Linear-tier minimal)。
+ * HomePage — Faceup V4 首页(Apple Newsroom-tier)。
+ *
+ * 删 ContinueCard + BattleStatsCard(迁到 Journey 二级页)
+ * 直接 Hero → Recommended → Legend → Mission → Trending → Steps + Achievement
  */
 import { useEffect } from 'react'
 import { useInterviewStore } from '@/store/interviewStore'
 import Hero from '@/components/home/Hero'
-import ContinueCard from '@/components/home/ContinueCard'
-import BattleStatsCard from '@/components/home/BattleStatsCard'
 import RecommendedChallengers from '@/components/home/RecommendedChallengers'
 import LegendGrid from '@/components/home/LegendGrid'
 import MissionCards from '@/components/home/MissionCards'
@@ -23,11 +24,6 @@ export default function HomePage() {
   return (
     <div className="flex flex-col">
       <Hero />
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <ContinueCard />
-        <BattleStatsCard />
-      </div>
 
       <RecommendedChallengers />
       <LegendGrid />

@@ -47,7 +47,7 @@ async def get_history_list(limit: int = 20) -> Dict[str, Any]:
 _PUBLIC_FIELDS = (
     "id", "tier", "name", "role_title", "avatar", "trait_label",
     "one_liner", "tags", "default_dimensions",
-    "affiliation", "affiliation_slug", "score",
+    "affiliation", "affiliation_slug", "score", "first_principle",
 )
 
 
